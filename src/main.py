@@ -1,12 +1,14 @@
-from excelReader import Reader
+from scheduleCreator import ScheduleCreator
 
+# main application
 class App:
     def __init__(self) -> None:
-        path = "schedule.xlsx"
-        self.reader = Reader(path)
+        self.schedule_creator = ScheduleCreator()
 
+    # main method
     def run(self):
-        self.reader.main()
+        # call main method of ScheduleCreater class
+        self.schedule_creator.main()
 
 
 if __name__ == "__main__":
