@@ -1,3 +1,6 @@
-OPEN_HOURS = {"open":10, "close":21}
+OPEN_HOUR = 10
+CLOSE_HOUR = 21
 MIN_WORKERS = 1 # minimum number of workers per hour
 MAX_WORKERS = 2
+MAX_UNAVAILABILITY = 2
+MAX_HOURS = 8
