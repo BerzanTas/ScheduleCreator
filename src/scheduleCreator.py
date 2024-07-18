@@ -107,7 +107,7 @@ class ScheduleCreator:
                 # add list of employee to current hour
                 schedule[day][hour] = working_employees
         
-            #print(day, ": ", schedule[day],"\n")
+            print(day, ": ", schedule[day],"\n")
         self._check_total_hour_amount(schedule)
         
     def main(self):
