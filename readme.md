@@ -20,7 +20,7 @@ The Schedule Creator is a Python-based application designed to create and manage
 ## Installation
 1. **Clone the repository**:
     ```bash
-    git clone https://github.com/yourusername/schedule-creator.git
+    git clone https://github.com/berzantas/schedule-creator.git
     cd schedule-creator
     ```
 
