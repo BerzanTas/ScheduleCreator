@@ -70,10 +70,10 @@ class ScheduleCreator:
     
     # this method is for adding up employee hours in the availability file and checking 
     # whether it is approximately the same as in the employee WORK_TIME record in the database
-    def _check_total_hour_amount(self, schedule:dict) -> None:
+    def _check_total_hour_amount(self, schedule:dict) -> dict:
         schedule_employee_hour = {}
-        db_employee_hour = self.emp_db.get_data("name, WORK_TIME")
-
+        db_employee_hour = self.emp_db.get_data("name,WORK_TIME")
+        print(db_employee_hour)
         for employee in self.employees:
             schedule_employee_hour[employee] = 0
 
@@ -82,9 +82,23 @@ class ScheduleCreator:
                     if employee in schedule[day][hour]:
                         schedule_employee_hour[employee] += 1
 
-        print(schedule_employee_hour)
+        for row in db_employee_hour:
+            if schedule_employee_hour[row["name"]] != row["WORK_TIME"]:
+                print(f"\nEmployee {row["name"]} has {schedule_employee_hour[row["name"]]} work hours isntead of {row["WORK_TIME"]}!\n")
 
-                
+        return schedule_employee_hour
+    
+    def _check_hour_per_day(self, schedule:dict, day:str) -> dict:
+        schedule_employee_hour = {}
+
+        for employee in self.employees:
+            schedule_employee_hour[employee] = 0
+
+            for hour in schedule[day]:
+                if employee in schedule[day][hour]:
+                    schedule_employee_hour[employee] += 1
+
+        return schedule_employee_hour
 
     def build_schedule(self, availability: dict) -> dict:
         """
@@ -93,22 +107,22 @@ class ScheduleCreator:
         schedule = dict()
         for day in availability.keys():
             schedule[day] = {} # create nested dict for every day
-
+            self._check_total_hour_amount(schedule)
             for hour in range(OPEN_HOUR, CLOSE_HOUR):
                 employee_number = 0 # number of working employee in current hour
                 working_employees = [] # list of working employees
                 schedule[day][hour] = {} # create nested dict for every hour in every day
+                number_of_hours = self._check_hour_per_day(schedule, day)
 
                 for employee in availability[day]:
                     # check if the employee is available to work in current hour
-                    if hour in range(availability[day][employee]["From"], availability[day][employee]["To"]) and employee_number <= MAX_WORKERS:
+                    if hour in range(availability[day][employee]["From"], availability[day][employee]["To"]) and employee_number <= MAX_WORKERS and number_of_hours[employee] < MAX_HOURS:
                         working_employees.append(employee)
                         employee_number += 1
                 # add list of employee to current hour
                 schedule[day][hour] = working_employees
-        
             print(day, ": ", schedule[day],"\n")
-        self._check_total_hour_amount(schedule)
+            
         
     def main(self):
         self._read()
