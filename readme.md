@@ -36,7 +36,8 @@ The Schedule Creator is a Python-based application designed to create and manage
 The program reads an Excel file using `pandas`, processes it to enhance readability, and extracts employee availability information. The availability data is then used to generate a work schedule.
 
 ### Database Management
-Change the text here
+The application communicates with a custom-built API hosted on a VPS. This API was developed using Flask and is containerized using Docker. It handles user data, employee records, and other necessary information, which is stored in a MySQL database also running in a Docker container. This setup ensures a scalable and secure environment for managing data.
+
 
 ### Scheduling Algorithm
 The scheduling algorithm considers constraints such as maximum work hours, minimum number of workers per hour, and employee unavailability. It ensures that the generated schedule meets all these constraints.
