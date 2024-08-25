@@ -10,6 +10,16 @@ The Schedule Creator is a Python-based application designed to create and manage
 - **Scheduling Algorithm**: Creates a work schedule based on employee availability, ensuring that constraints like maximum work hours and minimum availability are met.
 - **GUI**: Built with PySide6 for user-friendly interaction.
 
+## Screenshots
+### Login
+![](img/screenshots/login.png)
+
+### Registration
+![](img/screenshots/registration.png)
+
+### Main Program
+![](img/screenshots/mainprogram.png)
+
 ## Project Structure
 - `src/main.py`: Main application file that initializes and runs the program.
 - `src/database.py`: Contains API requests to the VPS server for user identification and employee data.
