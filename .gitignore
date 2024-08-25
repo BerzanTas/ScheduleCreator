@@ -1,4 +1,6 @@
+src/database.py
 venv/
 schedule.xlsx
 src/__pycache__/
-employee.db
+src/sensitive_data.py
+user_config.ini
