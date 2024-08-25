@@ -6,55 +6,33 @@ The Schedule Creator is a Python-based application designed to create and manage
 
 ## Features
 - **Excel File Processing**: Reads and formats Excel files containing employee availability.
-- **Database Management**: Uses SQLite3 to manage employee data.
+- **Database Management**: The software uses the `requests` library to connect to a Flask API running in Docker on a VPS. The API manages user and employee data in a MySQL server running in Docker.
 - **Scheduling Algorithm**: Creates a work schedule based on employee availability, ensuring that constraints like maximum work hours and minimum availability are met.
-- **GUI**: Built with Tkinter for user-friendly interaction.
+- **GUI**: Built with PySide6 for user-friendly interaction.
 
 ## Project Structure
-- `main.py`: Main application file that initializes and runs the program.
-- `database.py`: Contains the `EmployeeDB` class for managing the SQLite database.
-- `gui.py`: Implements the graphical user interface using Tkinter.
-- `scheduleCreator.py`: Contains the `ScheduleCreator` class for generating the work schedule.
-- `settings.py`: Configuration file with various settings and constraints.
-
-## Installation
-1. **Clone the repository**:
-    ```bash
-    git clone https://github.com/berzantas/schedule-creator.git
-    cd schedule-creator
-    ```
-
-2. **Create a virtual environment** (optional but recommended):
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-    ```
-
-3. **Install the required packages**:
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-## Usage
-1. **Prepare the Excel file**: Ensure the employee availability file is formatted correctly and placed in the project directory as `schedule.xlsx`.
-
-2. **Run the application**:
-    ```bash
-    python main.py
-    ```
+- `src/main.py`: Main application file that initializes and runs the program.
+- `src/database.py`: Contains API requests to the VPS server for user identification and employee data.
+- `src/gui.py`: Implements the graphical user interface using PySide6.
+- `src/scheduleCreator.py`: Contains the `ScheduleCreator` class for generating the work schedule.
+- `src/settings.py`: Configuration file with various settings and constraints.
+- `src/sensitive_data.py`: Stores sensitive information required for API communication.
+- `schedule.xlsx`: Example Excel file containing employee availability data.
+- `user_config.ini`: Configuration file with user-specific settings.
+- `requirements.txt`: Lists the Python dependencies required to run the project.
 
 ## Detailed Description
 ### Excel File Processing
 The program reads an Excel file using `pandas`, processes it to enhance readability, and extracts employee availability information. The availability data is then used to generate a work schedule.
 
 ### Database Management
-The SQLite database stores employee information, including their work hours and availability. The `database.py` module handles all database operations such as creating tables, adding records, and fetching data.
+Change the text here
 
 ### Scheduling Algorithm
 The scheduling algorithm considers constraints such as maximum work hours, minimum number of workers per hour, and employee unavailability. It ensures that the generated schedule meets all these constraints.
 
 ### GUI
-The GUI, built with Tkinter, provides an interface for users to interact with the application. It allows users to manage employee data and view the generated work schedules.
+The GUI, built with PySide6, provides an interface for users to interact with the application. It allows users to manage employee data and view the generated work schedules.
 
 ## Settings
 The `settings.py` file contains various configuration options:
@@ -64,9 +42,6 @@ The `settings.py` file contains various configuration options:
 - `MAX_WORKERS`: Maximum number of workers per hour.
 - `MAX_UNAVAILABILITY`: Maximum allowed unavailability for an employee.
 - `MAX_HOURS`: Maximum working hours per employee.
-
-## Contribution
-Contributions are welcome! Please fork the repository and submit a pull request for any improvements or bug fixes.
 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
