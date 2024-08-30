@@ -55,5 +55,8 @@ class Register:
         else:
             return False
         
+class EmployeeData:
+    pass
+        
 
         
