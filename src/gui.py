@@ -4,12 +4,12 @@ from PySide6.QtCore import QSize, Qt, QEvent, QTimer
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QFormLayout, QLabel,
     QLineEdit, QCheckBox, QPushButton, QHBoxLayout, QStackedWidget,
-    QToolTip, QGridLayout
+    QToolTip, QFrame, QSlider
 )
 from PySide6.QtGui import (QPainter, QPixmap, QFont, QFontDatabase, QGuiApplication,
                            QPalette, QColor, QIcon, QLinearGradient, QAction, QBrush
 )
-from database import Login, Register
+from database import Login, Register, EmployeeData
 
 class LoginWindow(QWidget):
     def __init__(self, parent=None) -> None:
@@ -567,45 +567,64 @@ class RegisterWindow(QWidget):
 class MainProgram(QWidget):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
-        self.setup_ui()
         self.load_custom_font()
+        
+        # creating fonts
+        self.button_font = QFont("Now", 13)
+        self.button_font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
+        self.head_font = QFont("Now", 14)
+        self.head_font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
+        self.paragraph_font = QFont("Now", 12)
+        self.paragraph_font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
+        self.slider_font = QFont("Now", 11)
+        self.slider_font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
+
+        self.setup_ui()
+        
 
     def setup_ui(self):
-        # Create main layout
+        # create main layout
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         # Create and add the menu bar
-        toolbar_widget = self.create_menubar()
-        main_layout.addWidget(toolbar_widget)
+        menubar_widget = self.create_menubar()
 
-        # Create and add main content widget
-        content_widget = QWidget(self)
-        content_layout = QVBoxLayout(content_widget)
-        content_layout.setContentsMargins(0, 0, 0, 0)
+        self.stacked_widget = QStackedWidget(self)
+
+        #if not EmployeeData.employeelistexists
+        self.no_db_window = QWidget()
+        self.no_db_window.setLayout(self.no_database_layout())
         
-        # add a test widget to ensure the layout works
+        self.database_window = QWidget(self)
+        self.database_window.setLayout(self.create_database_layout())
 
+        self.schedule_window = QWidget(self)
+        self.schedule_window.setLayout(self.create_schedule_layout())
 
-        # Add the content widget to the main layout
-        main_layout.addWidget(content_widget)
+        self.stacked_widget.addWidget(self.no_db_window)
+        self.stacked_widget.addWidget(self.database_window)
+        self.stacked_widget.addWidget(self.schedule_window)
+
+        main_layout.addWidget(menubar_widget)
+        main_layout.addWidget(self.stacked_widget)
 
         # Set the main layout to the widget
         self.setLayout(main_layout)
     
     def create_menubar(self):
-        # create a layout for the toolbar
-        toolbar_layout = QHBoxLayout()
-        toolbar_layout.setContentsMargins(80, 0, 80, 0)
-        toolbar_layout.setAlignment(Qt.AlignTop)
+        # create a layout for the menubar
+        menubar_layout = QHBoxLayout()
+        menubar_layout.setContentsMargins(80, 0, 80, 0)
+        menubar_layout.setAlignment(Qt.AlignTop)
 
-        # Create buttons for the toolbar
+        # Create buttons for the menubar
         database_button = QPushButton("Database", self)
+        database_button.clicked.connect(self.show_database_layout)
         schedule_button = QPushButton("Schedule", self)
+        schedule_button.clicked.connect(self.show_schedule_layout)
         self.logout_button = QPushButton("Log out", self)
 
-        button_font = QFont("Now", 13)
-        button_font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
         for button in [database_button, schedule_button, self.logout_button]:
             button.setStyleSheet("""
                                  QPushButton {
@@ -619,7 +638,7 @@ class MainProgram(QWidget):
                                     border-radius: 10px;
                                  }
                                  """)
-            button.setFont(button_font)
+            button.setFont(self.button_font)
             button.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.logout_button.clicked.connect(self.logout)
@@ -643,18 +662,391 @@ class MainProgram(QWidget):
         right_layout.addWidget(self.logout_button)
         
         # add the logout button to the right
-        toolbar_layout.addLayout(left_layout)
-        toolbar_layout.addStretch()
-        toolbar_layout.addWidget(logo_label)
-        toolbar_layout.addStretch()
-        toolbar_layout.addLayout(right_layout)
+        menubar_layout.addLayout(left_layout)
+        menubar_layout.addStretch()
+        menubar_layout.addWidget(logo_label)
+        menubar_layout.addStretch()
+        menubar_layout.addLayout(right_layout)
 
         # create a widget to hold the toolbar layout
-        toolbar_widget = QWidget(self)
-        toolbar_widget.setLayout(toolbar_layout)
-        toolbar_widget.setStyleSheet("background-color: transparent;")
+        menubar_widget = QWidget(self)
+        menubar_widget.setLayout(menubar_layout)
+        menubar_widget.setStyleSheet("background-color: transparent;")
 
-        return toolbar_widget
+        return menubar_widget
+    
+    def no_database_layout(self):
+        """
+            The layout that the user will see after first login after registering
+            or first login after deleting database. User will be asked to create
+            a database.
+        """
+        first_login_layout = QVBoxLayout()
+        first_login_layout.setContentsMargins(0,0,0,0)
+        first_login_layout.setAlignment(Qt.AlignTop)
+        
+        first_login_widget = QWidget(self)
+        first_login_widget.setFixedSize(500, 400)
+        first_login_widget.setStyleSheet("""
+                                         background-color: rgba(255, 255, 255, 0.15);
+                                         border-radius: 20px;
+                                         """)
+
+        # creating labels
+        
+
+
+        head_label = QLabel("Hmm...\nSeems like you don't have a database!")
+        head_label.setFont(self.head_font)
+        head_label.setStyleSheet("""
+                                 color: black;
+                                 background: none;
+                                 padding-top: 70px;
+                                 """)
+        
+        paragraph_label = QLabel("To use this program, you need a list of your employees with their working hours. Worry not! It is a very easy task, just click the button below:)")
+        paragraph_label.setFont(self.paragraph_font)
+        paragraph_label.setStyleSheet("""
+                                 color: black;
+                                 background: none;
+                                 padding: 0px 60px;
+                                 """)
+        
+        # wrap the text so it is not in one line
+        paragraph_label.setWordWrap(True) 
+
+        # center the labels
+        head_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        paragraph_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+
+        # create button directing to Database window
+        create_database_button = QPushButton("Create!", self)
+        create_database_button.setFont(self.button_font)
+        create_database_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        create_database_button.setFixedSize(200, 50)
+        create_database_button.setStyleSheet("""
+                                             QPushButton {
+                                                color: #da8641;
+                                                border: none;
+                                                padding: 5px 10px;
+                                                outline: none;
+                                                background-color: black;
+                                                border-radius: 10px;
+                                            }
+                                            QPushButton:hover {
+                                                color: black;
+                                                background-color: #da8641;
+                                                border: 1px solid black;
+                                            }
+                                             """)
+        create_database_button.clicked.connect(self.show_database_layout)
+
+        # centering the button
+        centered_button_layout = QVBoxLayout()
+        centered_button_layout.addWidget(create_database_button)
+        centered_button_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+
+        first_login_layout.addWidget(head_label)
+        first_login_layout.addSpacing(30)
+        first_login_layout.addWidget(paragraph_label)
+        first_login_layout.addSpacing(50)
+        first_login_layout.addLayout(centered_button_layout)
+
+        first_login_widget.setLayout(first_login_layout)
+
+        # horizontal layout to center the form container
+        centered_widget = self.center_widget(first_login_widget)
+        centered_widget.setContentsMargins(0, 100, 0, 0)
+        
+        return centered_widget
+    
+    def create_database_layout(self):
+        """Layout for creating and editing employee database"""
+
+        def show_add_emp():
+            stacked_database_widget.setCurrentWidget(form_widget)
+            employee_list_button.setStyleSheet("""
+                                              color: black;
+                                              background-color: transparent;
+                                              border-radius: 0px;
+                                              """)
+            add_employee_button.setStyleSheet("""
+                                               color: #df9233;
+                                               background-color: black;
+                                               margin-right: -10px;
+                                               border-radius: 0px;
+                                               """)
+
+        def show_emp_list():
+            add_employee_button.setStyleSheet("""
+                                              color: black;
+                                              background-color: transparent;
+                                              border-radius: 0px;
+                                              """)
+            employee_list_button.setStyleSheet("""
+                                               color: #df9233;
+                                               background-color: black;
+                                               margin-left: -10px;
+                                               border-radius: 0px;
+                                               """)
+            stacked_database_widget.setCurrentWidget(emp_list_widget)
+        
+        def update_value_label():
+            value = slider.value()
+            if value < 2:
+                slider.setValue(2)
+                value = 2
+
+            # map the slider value to the corresponding value from the list
+            if value != 5:
+                selected_value = values[value - 1]
+                value_label.setText(f"{selected_value:.2f}")
+
+                # calculate the position of the handle
+                slider_pos = slider.pos()
+                slider_width = slider.width()
+
+                # calculate the relative position of the handle
+                slider_range = slider.maximum() - slider.minimum()
+                relative_pos = (slider.value() - slider.minimum()) / slider_range
+
+                # move the label above the handle
+                handle_x = slider_pos.x() + relative_pos * slider_width
+                value_label.move(handle_x - value_label.width() // 2, slider_pos.y() - 30)
+            else:
+                value_label.setText("")
+
+
+
+        # QStackedWidget for changing layout between adding employee and list of employees
+        stacked_database_widget = QStackedWidget()
+
+        database_layout = QVBoxLayout()
+        database_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        database_layout.setSpacing(0)
+
+        database_widget = QWidget(self)
+        database_widget.setFixedSize(560, 584)
+        database_widget.setStyleSheet("""
+                                      background: none;
+                                      """)
+        database_layout.setContentsMargins(0,4,0,0)
+        
+        # layout for buttons switching between adding an employee and list of employees
+        database_switch = QHBoxLayout()
+        database_switch.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        database_switch.setSpacing(0)
+
+        add_employee_button = QPushButton("ADD EMPLOYEE")
+        employee_list_button = QPushButton("EMPLOYEE LIST")
+
+        for button in [add_employee_button, employee_list_button]:
+            button.setFixedSize(200,60)
+            button.setFont(self.button_font)
+
+        add_employee_button.setStyleSheet("""
+                                            color: #df9233;
+                                            background-color: black;
+                                            margin-right: -10px;
+                                            border-radius: 0px;
+                                          """)
+        add_employee_button.clicked.connect(show_add_emp)
+        employee_list_button.setStyleSheet("""
+                                            color: black;
+                                            background-color: transparent;
+                                            border-radius: 0px;
+                                           """)
+        employee_list_button.clicked.connect(show_emp_list)
+
+        database_switch.addWidget(add_employee_button)
+        database_switch.addWidget(employee_list_button)
+
+        # creating a line in between two buttons
+        line = QFrame(database_widget)
+        line.setFrameShape(QFrame.VLine)
+        line.setFrameShadow(QFrame.Sunken)
+        line.setStyleSheet("""
+                           color: black;
+                           background-color: black;
+                           """)
+        line.setFixedSize(4,70)
+        line.move((database_widget.width()/2)-4, 0)
+        line.raise_()
+
+        # creating employee add form
+        form_layout = QVBoxLayout()
+        form_layout.setSpacing(30)
+        form_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        form_widget = QWidget()
+        form_widget.setFixedSize(560, 520)
+        form_widget.setStyleSheet("""
+                                    background-color: rgba(0, 0, 0, 0.15);
+                                    border-radius: 15px;
+                                """)
+        form_widget.setLayout(form_layout)
+
+        # creating QLineEdits for employee id and employee name
+        emp_id = QLineEdit()
+        emp_id.setPlaceholderText("Employee ID")
+        emp_id.setFont(self.button_font)
+
+        emp_name = QLineEdit()
+        emp_name.setPlaceholderText("Employee name")
+        emp_name.setFont(self.button_font)
+
+        # setting placeholder and text color for email and password inputs
+        palette = emp_id.palette()
+        palette.setColor(QPalette.PlaceholderText, Qt.black)  
+        palette.setColor(QPalette.Text, Qt.black)
+
+        emp_id.setPalette(palette)
+        emp_name.setPalette(palette)
+
+        # new layout to group input fields
+        input_field_center = QVBoxLayout()
+
+        for input_field in [emp_id, emp_name]:
+            input_field.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+            input_field.setFixedSize(240,45)
+            input_field.setStyleSheet("""
+                                      background-color: transparent;
+                                      border: 1px solid black;
+                                      border-radius: 10px;
+                                      """)
+            # add QLineEdit to new layout
+            input_field_center.addWidget(input_field)
+
+        # new layout to horizontaly center the input fields
+        input_field_center_horizontal = QHBoxLayout()
+        input_field_center_horizontal.addStretch()
+        input_field_center_horizontal.addLayout(input_field_center)
+        input_field_center_horizontal.addStretch()
+        input_field_center_horizontal.setContentsMargins(0,50,0,30)
+
+        # creating a slider for working time
+        slider_layout = QHBoxLayout()
+        slider_layout_v = QVBoxLayout()
+        
+        slider = QSlider(Qt.Horizontal)
+        slider.setFixedWidth(350)
+        
+        values = [0, 0.25, 0.5, 0.75, 1] # allowed values for slider
+
+        # slider settings
+        slider.setMinimum(1)
+        slider.setMaximum(5)
+        slider.setValue(5)
+        slider.setTickInterval(1)
+        slider.valueChanged.connect(update_value_label)
+
+        # changing slider style
+        slider.setStyleSheet("""
+                             QSlider {
+                                background: none;
+                             }
+                            QSlider::groove:horizontal {
+                                height: 2px;
+                                background: black;
+                            }
+                            QSlider::handle:horizontal {
+                                background: black;
+                                width: 15px;
+                                height: 15px;
+                                border-radius: 7px;
+                                margin: -7px 0; /* to center the handle */
+                            }
+                            QSlider::sub-page:horizontal {
+                                background: black;
+                                height: 2px;
+                            }
+                            """)
+        
+        # adding label on left and right side of the slider and the bottom label
+        label_left = QLabel("0")
+        label_right = QLabel("1")
+        slider_label = QLabel("Working Time")
+        
+        for label in [label_left, label_right, slider_label]:
+            label.setFont(self.slider_font)
+            label.setStyleSheet("""
+                                background: none;
+                                color: black;
+                                """)
+            label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+
+        # grouping left/right labels with slider
+        slider_layout.addStretch()
+        slider_layout.addWidget(label_left)
+        slider_layout.addWidget(slider)
+        slider_layout.addWidget(label_right)
+        slider_layout.addStretch()
+        slider_layout.setSpacing(5)
+
+        # value label above the slider that will follow the handle
+        value_label = QLabel(form_widget)
+        value_label.setFixedSize(50, 20)
+        value_label.setAlignment(Qt.AlignCenter)
+        value_label.setFont(self.slider_font)
+        value_label.setStyleSheet("color: black; background: none;")
+
+        # change value_label position to be alway on top of handle
+        update_value_label()
+
+        # grouping slider with bottom label
+        slider_layout_v.addLayout(slider_layout)
+        slider_layout_v.addWidget(slider_label)
+        slider_layout_v.setSpacing(0)
+
+        # adding widgets and layouts to form layout
+        form_layout.addLayout(input_field_center_horizontal)
+        form_layout.addLayout(slider_layout_v)
+
+        # creating employee list layout
+        emp_list_layout = QVBoxLayout()
+        emp_list_widget = QWidget()
+        emp_list_widget.setLayout(emp_list_layout)
+
+        stacked_database_widget.addWidget(form_widget)
+        stacked_database_widget.addWidget(emp_list_widget)
+
+        database_layout.addLayout(database_switch)
+        database_layout.addWidget(stacked_database_widget)
+        database_widget.setLayout(database_layout)
+
+        centered_layout = self.center_widget(database_widget)
+        centered_layout.setContentsMargins(0,30,0,0)
+
+        return centered_layout
+    
+    def create_schedule_layout(self):
+        # Placeholder: utwórz i zwróć layout do widoku grafiku
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel("Schedule Page Content"))
+        return layout
+    
+    def show_database_layout(self):
+        self.stacked_widget.setCurrentWidget(self.database_window)
+
+    def show_schedule_layout(self):
+        self.stacked_widget.setCurrentWidget(self.schedule_window)
+
+    def show_no_database_layout(self):
+        self.stacked_widget.setCurrentWidget(self.no_db_window)
+
+    def center_widget(self, widget:QWidget) -> QVBoxLayout:
+        # horizontal layout to center the form container
+        horizontal_layout = QHBoxLayout()
+        horizontal_layout.addStretch()
+        horizontal_layout.addWidget(widget)
+        horizontal_layout.addStretch()
+
+        # vertical layout for overall placement in the window
+        vertical_layout = QVBoxLayout()
+        vertical_layout.addLayout(horizontal_layout)  
+        vertical_layout.addStretch()
+
+        return vertical_layout
     
     def paintEvent(self, event):
         # override paintEvent to draw the gradient background
@@ -675,7 +1067,8 @@ class MainProgram(QWidget):
 
     def logout(self):
         self.clear_login_info()
-
+    
+    # clears all saved data form 'remember me'
     def clear_login_info(self):
         """Delete saved credentials"""
         config_file = "user_config.ini"
@@ -699,7 +1092,8 @@ class WindowControl(QStackedWidget):
         super().__init__()
         # set the window properties
         self.setWindowTitle("Schedule Creator")
-        self.setFixedSize(QSize(1400, 800))
+        self.setFixedSize(QSize(1400, 800)) # window size
+        self.setWindowIcon(QIcon("img/icon.png")) # window icon
 
         if self.auto_login():
             self.show_main_program()
@@ -724,7 +1118,6 @@ class WindowControl(QStackedWidget):
         
         # if object has login_window attribute then remove it  from the stacked widget
         if hasattr(self, "login_window"):
-            print("Jest login window!")
             self.removeWidget(self.login_window)
             self.login_window.deleteLater()
             self.login_window = None
