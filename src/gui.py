@@ -12,10 +12,11 @@ from PySide6.QtGui import (QPainter, QPixmap, QFont, QFontDatabase, QGuiApplicat
 from database import Login, Register, EmployeeData
 
 class LoginWindow(QWidget):
+    """Defines the login window UI and its behavior"""
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.autologin = False
-        # if user choosed 'remember me' than automaticly change to main program without creating LoginWindow UI
+        # if user chose 'remember me', automatically switch to the main program without creating LoginWindow UI
         if self.auto_login():
             self.autologin = True
         else:
@@ -23,6 +24,7 @@ class LoginWindow(QWidget):
             self.setup_ui()
 
     def setup_ui(self):
+        """Setup the user interface elements for the login window"""
         # main layout for the login window
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)  
@@ -211,7 +213,7 @@ class LoginWindow(QWidget):
             configfile.write(f"[USER]\nEmail={email}\n")
 
     def auto_login(self):
-        """Automaticly login the user from saved credentials"""
+        """Automaticly log in the user from saved credentials"""
         config_file = "user_config.ini"
         if os.path.exists(config_file):
             config = configparser.ConfigParser()
@@ -220,7 +222,7 @@ class LoginWindow(QWidget):
             if 'USER' in config:
                 email = config['USER']['Email']
 
-                # Pobierz hasło z keyring
+                # get password from keyring
                 password = keyring.get_password("schedule_creator", email)
                 if password:
                     login = Login()
@@ -440,13 +442,14 @@ class RegisterWindow(QWidget):
             return False
 
     def check_email(self):
-        # e-mail validation
+        """Validate email format and check for duplicate entries"""
         text = self.email_input.text()
 
         if re.fullmatch(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$', text):
             self.email_input.setStyleSheet("border: 1px solid green;")
             self.email_input.setToolTip("")
 
+            # check if email already exists
             if self.registration.check_if_exists("email", text):
                 self.email_input.setStyleSheet("border: 1px solid red;")
                 self.email_input.setToolTip("E-mail already in use.")
@@ -459,9 +462,10 @@ class RegisterWindow(QWidget):
             return False
 
     def check_password(self):
-        # password validation
+        """Validate password strength"""
         text = self.password_input.text()
 
+        # regex to check for at least 8 characters, one uppercase, and one lowercase letter
         if re.fullmatch(r'(?=.*[a-z])(?=.*[A-Z])[A-Za-z0-9\d@$!%*?&.,]{8,}$', text):
             self.password_input.setStyleSheet("border: 1px solid green;")
             self.password_input.setToolTip("")
@@ -472,7 +476,7 @@ class RegisterWindow(QWidget):
             return False
 
     def confirm_password(self):
-        # confirm password
+        """Check if both password fields match"""
         password1 = self.password_input.text()
         password2 = self.confirm_password_input.text()
 
@@ -492,7 +496,7 @@ class RegisterWindow(QWidget):
         password = self.password_input.text()
         all_fields_correct = False
 
-        # all_fields_correct == True if all the fields are correctly filled
+        # check if all fields are filled correctly
         if self.check_username():
             if self.check_email():
                 if self.check_password():
@@ -506,7 +510,8 @@ class RegisterWindow(QWidget):
                 self.account_created()
         
     def account_created(self):
-        # delete text in fields
+        """Clear input fields and show success notification"""
+        # clear all input fields after successful registration
         self.username_input.clear()
         self.username_input.setStyleSheet("border: none;")
 
@@ -533,13 +538,13 @@ class RegisterWindow(QWidget):
         self.notification_label.setGeometry(self.width() - 225, 25, 200, 50)
         self.notification_label.show()
 
-        # set the timer for notification
+        # set the timer for notification to disappear after 3 seconds
         QTimer.singleShot(3000, self.notification_label.hide)
     
     def eventFilter(self, source, event):
-        """Handle mouse hover events to show tooltip for invalid inputs."""
+        """Handle mouse hover events to show tooltip for invalid inputs"""
         if event.type() == QEvent.HoverEnter:
-            # Pokaż tooltipa, jeśli dane są niepoprawne
+            # show tooltip if the input data is invalid
             if source == self.username_input:
                 QToolTip.showText(source.mapToGlobal(event.pos()), source.toolTip(), source)
             elif source == self.email_input:
@@ -565,6 +570,7 @@ class RegisterWindow(QWidget):
             print("Failed to load custom font.")
 
 class MainProgram(QWidget):
+    """Defines the main program UI and behavior after a successful login"""
     def __init__(self, user, parent=None) -> None:
         super().__init__(parent)
         self.employee_data = EmployeeData()
@@ -574,7 +580,7 @@ class MainProgram(QWidget):
 
         self.load_custom_font()
         
-        # creating fonts
+        # creating fonts for different UI elements
         self.button_font = QFont("Now", 13)
         self.button_font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
         self.head_font = QFont("Now", 14)
@@ -588,52 +594,62 @@ class MainProgram(QWidget):
         
 
     def setup_ui(self):
+        """Setup the user interface elements for the main program"""
         # create main layout
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Create and add the menu bar
+        # create and add the menu bar
         menubar_widget = self.create_menubar()
 
+        # QStackedWidget allows switching between different screens (e.g., database, schedule)
         self.stacked_widget = QStackedWidget(self)
         
+        # database window setup
         self.database_window = QWidget(self)
         self.database_window.setLayout(self.create_database_layout())
 
+        # schedule window setup
         self.schedule_window = QWidget(self)
         self.schedule_window.setLayout(self.create_schedule_layout())
 
+        # add both windows to the stacked widget
         self.stacked_widget.addWidget(self.database_window)
         self.stacked_widget.addWidget(self.schedule_window)
 
-        #if not EmployeeData.employeelistexists
+        # check if the employee table exists for the user
         if self.employee_data.checkIfTableExist(self.user_mail) != 200:
+            # if no employee table, show the no database window
             self.no_db_window = QWidget()
             self.no_db_window.setLayout(self.no_database_layout())
             self.stacked_widget.addWidget(self.no_db_window)
             self.stacked_widget.setCurrentWidget(self.no_db_window)
         else:
+            # if employee table exists, show the schedule window
             self.stacked_widget.setCurrentWidget(self.schedule_window)
         
+        # add the menu bar and stacked widget to the main layout
         main_layout.addWidget(menubar_widget)
         main_layout.addWidget(self.stacked_widget)
 
-        # Set the main layout to the widget
+        # set the main layout to the widget
         self.setLayout(main_layout)
     
     def create_menubar(self):
+        """Create the top menu bar with navigation buttons"""
         # create a layout for the menubar
         menubar_layout = QHBoxLayout()
         menubar_layout.setContentsMargins(80, 0, 80, 0)
         menubar_layout.setAlignment(Qt.AlignTop)
 
-        # Create buttons for the menubar
+        # create buttons for the menubar
         database_button = QPushButton("Database", self)
         database_button.clicked.connect(self.show_database_layout)
         schedule_button = QPushButton("Schedule", self)
         schedule_button.clicked.connect(self.show_schedule_layout)
         self.logout_button = QPushButton("Log out", self)
 
+        # apply styling and setup event handlers for the buttons
         for button in [database_button, schedule_button, self.logout_button]:
             button.setStyleSheet("""
                                  QPushButton {
@@ -652,25 +668,25 @@ class MainProgram(QWidget):
 
         self.logout_button.clicked.connect(self.logout)
 
-        # create and add logo
+        # create and add logo to the menu bar
         logo_label = QLabel(self)
         logo_label.setFixedSize(235, 115)
         logo_pixmap = QPixmap("img/logo.png")
         logo_label.setPixmap(logo_pixmap.scaled(logo_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
-        # handle left side of the logo
+        # handle left side of the logo (database and schedule buttons)
         left_layout = QHBoxLayout()
         left_layout.addWidget(database_button)
         left_layout.addSpacing(50)
         left_layout.addWidget(schedule_button)
         left_layout.addStretch()
 
-        # handle rigth side of the logo
+        # handle right side of the logo (logout button)
         right_layout = QHBoxLayout()
         right_layout.addStretch()
         right_layout.addWidget(self.logout_button)
         
-        # add the logout button to the right
+        # add both left and right layouts to the menubar
         menubar_layout.addLayout(left_layout)
         menubar_layout.addStretch()
         menubar_layout.addWidget(logo_label)
@@ -686,9 +702,8 @@ class MainProgram(QWidget):
     
     def no_database_layout(self):
         """
-            The layout that the user will see after first login after registering
-            or first login after deleting database. User will be asked to create
-            a database.
+        The layout that the user will see after the first login post-registration
+        or the first login after deleting the database. The user will be asked to create a database.
         """
         first_login_layout = QVBoxLayout()
         first_login_layout.setContentsMargins(0,0,0,0)
@@ -702,9 +717,6 @@ class MainProgram(QWidget):
                                          """)
 
         # creating labels
-        
-
-
         head_label = QLabel("Hmm...\nSeems like you don't have a database!")
         head_label.setFont(self.head_font)
         head_label.setStyleSheet("""
@@ -755,6 +767,7 @@ class MainProgram(QWidget):
         centered_button_layout.addWidget(create_database_button)
         centered_button_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
+        # add the elements to the layout
         first_login_layout.addWidget(head_label)
         first_login_layout.addSpacing(30)
         first_login_layout.addWidget(paragraph_label)
@@ -770,9 +783,10 @@ class MainProgram(QWidget):
         return centered_widget
     
     def create_database_layout(self):
-        """Layout for creating and editing employee database"""
+        """Create the layout for creating and editing employee database"""
 
         def update_value_label():
+            """Update the label that shows the slider value"""
             value = slider.value()
             if value < 2:
                 slider.setValue(2)
@@ -798,9 +812,8 @@ class MainProgram(QWidget):
                 value_label.setText("")
 
         def add_employee():
+            """Add an employee to the database using the input form"""
             self.employee_data.addEmployee(self.user_mail, emp_id.text(), emp_name.text(), values[slider.value()-1], student_second_job_checkbox.isChecked())
-
-
 
         # QStackedWidget for changing layout between adding employee and list of employees
         self.stacked_database_widget = QStackedWidget()
@@ -845,6 +858,7 @@ class MainProgram(QWidget):
                                            """)
         self.employee_list_button.clicked.connect(self.show_emp_list)
 
+        # add buttons to the layout
         database_switch.addWidget(self.add_employee_button)
         database_switch.addWidget(self.employee_list_button)
 
@@ -1117,9 +1131,10 @@ class MainProgram(QWidget):
         return centered_layout
     
     def create_schedule_layout(self):
-        """Layout for uploading file and generating schedule"""
+        """Create the layout for uploading files and generating a schedule"""
         schedule_layout = QVBoxLayout()
 
+        # setup label for file upload
         upload_font = QFont("Now", 18)
         upload_label = QLabel("Upload File")
         upload_label.setFont(upload_font)
@@ -1127,6 +1142,7 @@ class MainProgram(QWidget):
         centered_upload = self.center_widget(upload_label)
         centered_upload.setContentsMargins(0,20,0,0)
 
+        # setup layout for drag-and-drop area
         drag_n_drop_layout = QVBoxLayout()
         drag_n_drop_layout.setSpacing(10)
 
@@ -1146,6 +1162,7 @@ class MainProgram(QWidget):
         centered_upload_icon.addStretch()
         centered_upload_icon.setContentsMargins(0,50,0,0)
         
+        # setup drag-and-drop label
         self.drag_n_drop_label = QLabel("Drag and Drop file\nor")
         self.drag_n_drop_label.setFont(self.head_font)
         self.drag_n_drop_label.setStyleSheet("""
@@ -1155,6 +1172,7 @@ class MainProgram(QWidget):
                                         """)
         self.drag_n_drop_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
+        # setup browse button for file upload
         browse_button = QPushButton("Browse")
         browse_button.setFont(self.head_font)
         browse_button.setFixedSize(140, 37)
@@ -1168,10 +1186,12 @@ class MainProgram(QWidget):
                                     """)
         center_browse_button = self.center_widget(browse_button)
 
+        # add components to the drag-and-drop layout
         drag_n_drop_layout.addLayout(centered_upload_icon)
         drag_n_drop_layout.addWidget(self.drag_n_drop_label)
         drag_n_drop_layout.addLayout(center_browse_button)
-        
+
+        # setup drag-and-drop area widget
         self.drag_n_drop_widget = QWidget()
         self.drag_n_drop_widget.setLayout(drag_n_drop_layout)
         self.drag_n_drop_widget.setAcceptDrops(True)
@@ -1184,7 +1204,7 @@ class MainProgram(QWidget):
         centered_drag_n_drop = self.center_widget(self.drag_n_drop_widget)
         centered_drag_n_drop.setContentsMargins(0,0,0,20)
 
-
+        # add components to the main layout
         schedule_layout.addLayout(centered_upload)
         schedule_layout.addLayout(centered_drag_n_drop)
         
@@ -1207,12 +1227,12 @@ class MainProgram(QWidget):
         def dropEvent(event: QDropEvent):
             files = event.mimeData().urls()
             if files:
-                file_path = files[0].toLocalFile()
+                self.file_path = files[0].toLocalFile()
                 # accept only Excel files
-                if file_path.endswith(('.xls', '.xlsx')):
-                    print(f"Valid Excel file dropped: {file_path}")
+                if self.file_path.endswith(('.xls', '.xlsx')):
+                    print(f"Valid Excel file dropped: {self.file_path}")
                     #if valid file, than change border to green, display file name and enable generate button
-                    self.drag_n_drop_label.setText(f"{file_path.split("/")[-1]} dropped")
+                    self.drag_n_drop_label.setText(f"{self.file_path.split("/")[-1]} dropped")
                     self.drag_n_drop_widget.setStyleSheet("""
                                                      background-color: rgba(255,255,255,0.15);
                                                      border: 2px dashed green;
@@ -1226,7 +1246,7 @@ class MainProgram(QWidget):
                                                         border-radius: 10px;
                                                         """)
                 else:
-                    print(f"Ignored non-Excel file: {file_path}")
+                    print(f"Ignored non-Excel file: {self.file_path}")
                     self.drag_n_drop_label.setText("Only Excel files are accepted")
                     self.drag_n_drop_widget.setStyleSheet("""
                                                      background-color: rgba(255,255,255,0.15);
@@ -1241,13 +1261,15 @@ class MainProgram(QWidget):
                                     border-radius: 10px;
                                     """)
 
+        # bind drag-and-drop events
         self.drag_n_drop_widget.dragEnterEvent = dragEnterEvent
         self.drag_n_drop_widget.dropEvent = dropEvent
 
+        # setup generate button
         self.generate_button = QPushButton("Generate!")
         self.generate_button.setFont(self.head_font)
         self.generate_button.setFixedSize(240, 50)
-        #self.generate_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        # disable the generate button initially
         self.generate_button.setStyleSheet("""
                                     color: #606060;
                                     background-color: rgba(192,192,192,0.5);
@@ -1270,54 +1292,58 @@ class MainProgram(QWidget):
         desktop_path = QStandardPaths.writableLocation(QStandardPaths.DesktopLocation)
 
         # open file dialog and get the selected file path
-        file_path, _ = QFileDialog.getOpenFileName(self, "Select an Excel file", desktop_path, "Excel  Files (*.xls *.xlsx)")
+        self.file_path, _ = QFileDialog.getOpenFileName(self, "Select an Excel file", desktop_path, "Excel  Files (*.xls *.xlsx)")
 
-        if file_path:
-            # Extract the file name from the path
-            file_name = os.path.basename(file_path)
+        if self.file_path:
+            # extract the file name from the path
+            file_name = os.path.basename(self.file_path)
 
-
-        if file_path.endswith(('.xls', '.xlsx')):
-            print(f"Valid Excel file dropped: {file_path}")
-            self.drag_n_drop_label.setText(f"{file_path.split("/")[-1]} chosen")
-            self.drag_n_drop_widget.setStyleSheet("""
-                                             background-color: rgba(255,255,255,0.15);
-                                             border: 2px dashed green;
-                                             border-radius: 15;
-                                             """)
-            self.generate_button.setCursor(Qt.CursorShape.PointingHandCursor)
-            self.generate_button.setStyleSheet("""
-                            color: #da8444;
-                            background-color: black;
-                            border: none;
-                            border-radius: 10px;
-                            """)
-        else:
-            print(f"Ignored non-Excel file: {file_path}")
-            self.drag_n_drop_label.setText("Only Excel files are accepted")
-            self.drag_n_drop_widget.setStyleSheet("""
-                                             background-color: rgba(255,255,255,0.15);
-                                             border: 2px dashed red;
-                                             border-radius: 15;
-                                             """)
-            self.generate_button.setCursor(Qt.CursorShape.CustomCursor)
-            self.generate_button.setStyleSheet("""
-                                    color: #606060;
-                                    background-color: rgba(192,192,192,0.5);
-                                    border: none;
-                                    border-radius: 10px;
-                                    """)
+            # handle valid and invalid file selections
+            if self.file_path.endswith(('.xls', '.xlsx')):
+                print(f"Valid Excel file dropped: {self.file_path}")
+                self.drag_n_drop_label.setText(f"{self.file_path.split("/")[-1]} chosen")
+                self.drag_n_drop_widget.setStyleSheet("""
+                                                background-color: rgba(255,255,255,0.15);
+                                                border: 2px dashed green;
+                                                border-radius: 15;
+                                                """)
+                self.generate_button.setCursor(Qt.CursorShape.PointingHandCursor)
+                self.generate_button.setStyleSheet("""
+                                color: #da8444;
+                                background-color: black;
+                                border: none;
+                                border-radius: 10px;
+                                """)
+            else:
+                print(f"Ignored non-Excel file: {self.file_path}")
+                self.drag_n_drop_label.setText("Only Excel files are accepted")
+                self.drag_n_drop_widget.setStyleSheet("""
+                                                background-color: rgba(255,255,255,0.15);
+                                                border: 2px dashed red;
+                                                border-radius: 15;
+                                                """)
+                self.generate_button.setCursor(Qt.CursorShape.CustomCursor)
+                self.generate_button.setStyleSheet("""
+                                        color: #606060;
+                                        background-color: rgba(192,192,192,0.5);
+                                        border: none;
+                                        border-radius: 10px;
+                                        """)
     
     def show_database_layout(self):
+        """Switches the current view to the database layout"""
         self.stacked_widget.setCurrentWidget(self.database_window)
 
     def show_schedule_layout(self):
+        """Switches the current view to the schedule layout"""
         self.stacked_widget.setCurrentWidget(self.schedule_window)
 
     def show_no_database_layout(self):
+        """Switches the current view to the 'no database' layout"""
         self.stacked_widget.setCurrentWidget(self.no_db_window)
 
     def show_add_emp(self):
+        """Shows the add employee form layout"""
         self.stacked_database_widget.setCurrentWidget(self.form_widget)
         self.employee_list_button.setStyleSheet("""
                                           color: black;
@@ -1336,8 +1362,8 @@ class MainProgram(QWidget):
         
         
     def show_emp_list(self):
-        """Updates and shows employee list"""
-        # change buttons style
+        """Updates and shows the employee list layout"""
+        # change button styles to reflect the active view
         self.add_employee_button.setStyleSheet("""
                                           color: black;
                                           background-color: transparent;
@@ -1352,46 +1378,46 @@ class MainProgram(QWidget):
                                            border-radius: 0px;
                                            outline: none;
                                            """)
-        # set employee list as current widget
+        # set employee list as the current widget in the stacked widget
         self.stacked_database_widget.setCurrentWidget(self.emp_list_widget)
         
         self.update_scroll_area()
 
         
     def update_scroll_area(self):
-        """Creates employee list widget and returns it"""
+        """Creates and updates the employee list in the scroll area"""
         # get employee data from database
         employee_list = self.employee_data.getEmployeeTable(self.user_mail)
-        # delete user_id (first column)
+        # remove user_id (first column) as it is not needed in the display
         employee_list = [row[1:] for row in employee_list]
         
         list_area_widget = QWidget()
-        list_area_widget.setStyleSheet("""
-                                       background: none;
-                                       """)
+        list_area_widget.setStyleSheet("background: none;")
         list_area_layout = QVBoxLayout(list_area_widget)
         
         if len(employee_list) > 0:
+            # iterate over employee data and create rows
             for data in employee_list:
                 row_layout = QHBoxLayout()
                 config_button = QPushButton()
                 config_button.setIcon(QIcon(QPixmap("img/more.png")))
                 config_button.setCursor(Qt.CursorShape.PointingHandCursor)
                 config_button.setStyleSheet("""
-                                                background: none;
-                                                border: none;
-                                                outline: none;
+                                            background: none;
+                                            border: none;
+                                            outline: none;
                                             """)
-                # set the employee ID as the button's property
+                # set the employee ID as the button's property for later use
                 config_button.setProperty("employee_id", data[0])
                 config_button.clicked.connect(self.show_context_menu)
 
+                # create labels for each employee's data (ID, name, working time, student status)
                 emp_list_id = QLabel(data[0])
                 emp_list_name = QLabel(data[1])
                 emp_list_wt = QLabel(data[2])
                 emp_list_student = QLabel("Yes" if data[3] == 1 else "No")
 
-                # assign properties to each QLabel
+                # assign properties to each QLabel for reference during editing
                 emp_list_id.setProperty('employee_id', data[0])
                 emp_list_id.setProperty('type', 'id')
 
@@ -1404,15 +1430,13 @@ class MainProgram(QWidget):
                 emp_list_student.setProperty('employee_id', data[0])
                 emp_list_student.setProperty('type', 'student')
 
+                # style labels and set their fixed size
                 for label in [emp_list_id, emp_list_name, emp_list_wt, emp_list_student]:
-                    label.setStyleSheet("""
-                                        color: black;
-                                        background: none;
-                                        """)
+                    label.setStyleSheet("color: black; background: none;")
                     label.setFont(self.font11)
                     label.setFixedWidth(100)
                 
-
+                # add labels and config button to the row layout
                 row_layout.addSpacing(10)
                 row_layout.addWidget(emp_list_id)
                 row_layout.addSpacing(15)
@@ -1423,42 +1447,40 @@ class MainProgram(QWidget):
                 row_layout.addWidget(config_button)
                 row_layout.addStretch()
 
+                # add a horizontal line between rows
                 row_line = QFrame()
                 row_line.setFrameShape(QFrame.HLine)
                 row_line.setFrameShadow(QFrame.Sunken)
                 row_line.setStyleSheet("background-color: rgba(0,0,0,0.10);")
                 row_line.setFixedHeight(1)
 
+                # add the row layout and line to the main layout
                 list_area_layout.addLayout(row_layout)
                 list_area_layout.addWidget(row_line)
 
-            # scroll_area was cutting the last row in half, thats why I am adding stretch at the end
+            # add a stretch at the end to avoid cutting off the last row
             list_area_layout.addStretch()
 
-        # add the list to scroll area
+        # add the list of employees to the scroll area
         self.scroll_area.setWidget(list_area_widget)
         self.scroll_area.setStyleSheet("""
                                     QScrollArea {
                                         background-color: rgba(255,255,255,0.15);
                                         border-radius: 5;
                                     }
-                                  
                                     QScrollBar:vertical {
                                         background-color: rgba(0,0,0,0.15);
                                         width: 6px;
                                     }
-
                                     QScrollBar::handle:vertical {
                                         background-color: black;
                                         min-height: 20px;
                                     }
-
                                     QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                                         background: none;
                                         height: 0px;
                                         width: 4px;
                                     }
-
                                     QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                                         background: none;
                                         height: 0px;
@@ -1468,6 +1490,7 @@ class MainProgram(QWidget):
     
     @Slot()
     def show_context_menu(self):
+        """Show a context menu with options to edit or delete an employee"""
         # retrieve the employee ID from the button's property
         button = self.sender()
         employee_id = button.property('employee_id')
@@ -1476,13 +1499,16 @@ class MainProgram(QWidget):
         menu = QMenu(self)
 
         if not self.is_editing:
+            # if not currently editing, show options to edit or delete the employee
             edit_action = QAction("Edit", self)
             delete_action = QAction("Delete", self)
             menu.addAction(edit_action)
             menu.addAction(delete_action)
+            # connect actions to their respective methods
             edit_action.triggered.connect(lambda: self.edit_employee(employee_id))
             delete_action.triggered.connect(lambda: self.delete_employee(employee_id))
         else:
+            # if editing, show options to save or cancel the changes
             save_action = QAction("Save", self)
             cancel_action = QAction("Cancel", self)
             save_action.triggered.connect(lambda: self.save_changes(employee_id))
@@ -1490,29 +1516,34 @@ class MainProgram(QWidget):
             menu.addAction(save_action)
             menu.addAction(cancel_action)
         
+        # set margins and size for the context menu
         menu.setContentsMargins(-30,0,0,0)
         menu.setFixedSize(70, 55)
         
-        # display the context menu
+        # display the context menu at the button's position
         menu.exec(button.mapToGlobal(button.rect().bottomRight()))
 
     def delete_employee(self, employee_id):
+        """Delete an employee from the database"""
         print(f"Delete employee with ID: {employee_id}")
         self.employee_data.deleteEmployee(self.user_mail, employee_id)
 
+        # refresh the employee list
         self.update_scroll_area()
 
     def edit_employee(self, employee_id):
+        """Edit the details of an existing employee"""
         print(f"Edit employee with ID: {employee_id}")
         self.is_editing = True
 
         for label in self.findChildren(QLabel):
+            # find the QLabel that matches the employee ID and replace it with editable widgets
             if label.property("employee_id") == employee_id:
                 text = label.text()
                 layout = label.parentWidget().layout()
                 
                 if label.property('type') == 'id':
-                    # Convert QLabel to QLineEdit
+                    # convert QLabel to QLineEdit for editing employee ID
                     id_line_edit = QLineEdit(text)
                     id_line_edit.setFont(self.font11)
                     id_line_edit.setFixedWidth(100)
@@ -1525,7 +1556,7 @@ class MainProgram(QWidget):
                                             """)
                     
                 elif label.property('type') == 'name':
-                    # Convert QLabel to QLineEdit
+                    # convert QLabel to QLineEdit for editing employee name
                     name_line_edit = QLineEdit(text)
                     name_line_edit.setFont(self.font11)
                     name_line_edit.setFixedWidth(100)
@@ -1538,7 +1569,7 @@ class MainProgram(QWidget):
                                             """)
 
                 elif label.property('type') == 'wt':
-                    # Convert QLabel to QComboBox for Work Time
+                    # convert QLabel to QComboBox for editing work time
                     wt_combo_box = QComboBox()
                     wt_combo_box.addItems(["0.25", "0.5", "0.75", "1"])
                     wt_combo_box.setCurrentText(text)
@@ -1561,7 +1592,7 @@ class MainProgram(QWidget):
                     label.deleteLater()
 
                 elif label.property('type') == 'student':
-                    # Convert QLabel to QComboBox for Student Status
+                    # convert QLabel to QComboBox for editing student status
                     st_combo_box = QComboBox()
                     st_combo_box.addItems(["Yes", "No"])
                     st_combo_box.setCurrentText(text)
@@ -1582,34 +1613,41 @@ class MainProgram(QWidget):
                                             """)
                     layout.replaceWidget(label, st_combo_box)
                     label.deleteLater()
-            
+        
+        # store the new data in a list for later use when saving
         self.new_data = [id_line_edit, name_line_edit, wt_combo_box, st_combo_box]
 
     def save_changes(self, old_employee_id):
+        """Save the changes made to an employee's details"""
         print(f"Save changes for employee with ID: {old_employee_id}")
         self.is_editing = False
+        # retrieve updated values from the editing widgets
         id = self.new_data[0].text()
         name = self.new_data[1].text()
         wt = self.new_data[2].currentText()
         student_sj = 1 if self.new_data[3].currentText() == "Yes" else 0
         
+        # update the employee data in the database
         self.employee_data.updateEmployeeData(self.user_mail, old_employee_id, id, name, wt, student_sj)
+        # refresh the employee list
         self.update_scroll_area()
         
-
     def cancel_edit(self, employee_id):
+        """Cancel editing and revert back to the original data"""
         print(f"Cancel editing for employee with ID: {employee_id}")
         self.is_editing = False
+        # revert any changes and refresh the employee list
         self.update_scroll_area()
 
     def center_widget(self, widget:QWidget) -> QVBoxLayout:
-        # horizontal layout to center the form container
+        """Helper method to center a widget both horizontally and vertically"""
+        # create horizontal layout to center the widget
         horizontal_layout = QHBoxLayout()
         horizontal_layout.addStretch()
         horizontal_layout.addWidget(widget)
         horizontal_layout.addStretch()
 
-        # vertical layout for overall placement in the window
+        # create vertical layout for overall placement in the window
         vertical_layout = QVBoxLayout()
         vertical_layout.addLayout(horizontal_layout)  
         vertical_layout.addStretch()
@@ -1617,7 +1655,7 @@ class MainProgram(QWidget):
         return vertical_layout
     
     def paintEvent(self, event):
-        # override paintEvent to draw the gradient background
+        """Override paintEvent to draw the gradient background"""
         painter = QPainter(self)
         gradient = QLinearGradient(0, 0, self.width(), self.height())
         gradient.setColorAt(0, QColor("#f1b903"))
@@ -1634,11 +1672,11 @@ class MainProgram(QWidget):
             print("Failed to load custom font.")
 
     def logout(self):
+        """Log out the user and clear saved login information"""
         self.clear_login_info()
     
-    # clears all saved data form 'remember me'
     def clear_login_info(self):
-        """Delete saved credentials"""
+        """Delete saved credentials from keyring and the config file"""
         config_file = "user_config.ini"
         if os.path.exists(config_file):
             config = configparser.ConfigParser()
@@ -1650,7 +1688,7 @@ class MainProgram(QWidget):
                 keyring.delete_password("schedule_creator", email)
                 print("Login info cleared from keyring.")
 
-            # delete conf file
+            # delete the config file
             os.remove(config_file)
             print("Login info file deleted.")
 
@@ -1665,12 +1703,14 @@ class WindowControl(QStackedWidget):
         self.center()
         self.email = None
 
+        # automatically log in if credentials are saved
         if self.auto_login():
             self.show_main_program()
         else:
             self.show_login_window()
     
     def show_main_program(self):
+        """Switches to the main program view after login"""
         # create main program window
         self.main_program = MainProgram(self.email, self)
         self.addWidget(self.main_program)
@@ -1678,15 +1718,15 @@ class WindowControl(QStackedWidget):
         # switch to the main program
         self.setCurrentWidget(self.main_program)
 
+        # connect the logout button to the method that switches back to the login window
         self.main_program.logout_button.clicked.connect(self.show_login_window)
 
-        # if object has register_window attribute then remove it  from the stacked widget
+        # remove registration and login windows from the stacked widget if they exist
         if hasattr(self, "register_window"):
             self.removeWidget(self.register_window)
             self.register_window.deleteLater()
             self.register_window = None
         
-        # if object has login_window attribute then remove it  from the stacked widget
         if hasattr(self, "login_window"):
             self.email = self.login_window.email_input.text()
             self.removeWidget(self.login_window)
@@ -1694,40 +1734,38 @@ class WindowControl(QStackedWidget):
             self.login_window = None
     
     def show_login_window(self):
-        # create new login window
+        """Switches to the login window view"""
+        # create a new login window
         self.login_window = LoginWindow(self)
-        
-
-        # add it to the stack
         self.addWidget(self.login_window)
 
-        # switch to login window
+        # switch to the login window
         self.setCurrentWidget(self.login_window)
 
+        # remove the main program view if it exists
         if hasattr(self, 'main_program'):
             self.removeWidget(self.main_program)
             self.main_program.deleteLater()
             self.main_program = None
 
-        # connect the login button with show main program
+        # connect the login button and register label to their respective methods
         self.login_window.login_button.clicked.connect(self.show_main_program)
         self.login_window.register_label.linkActivated.connect(self.show_registration_window)
 
     def show_registration_window(self):
+        """Switches to the registration window view"""
         # create new registration window
         self.register_window = RegisterWindow(self)
-
-        # add it to the stack
         self.addWidget(self.register_window)
 
-        # show regisration window
+        # switch to the registration window
         self.setCurrentWidget(self.register_window)
 
-        # switch to login window
+        # connect the back button to return to the login window
         self.register_window.go_back_button.clicked.connect(self.show_login_window)
     
     def auto_login(self):
-        # check if user_config.ini exists
+        """Automatically log in if saved credentials are found"""
         config_file = "user_config.ini"
         if os.path.exists(config_file):
             config = configparser.ConfigParser()
@@ -1736,7 +1774,7 @@ class WindowControl(QStackedWidget):
             if 'USER' in config:
                 self.email = config['USER']['Email']
 
-                # get password from keyring
+                # retrieve the password from keyring
                 password = keyring.get_password("schedule_creator", self.email)
                 if password:
                     login = Login()
