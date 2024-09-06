@@ -11,14 +11,35 @@ The Schedule Creator is a Python-based application designed to create and manage
 - **GUI**: Built with PySide6 for user-friendly interaction.
 
 ## Screenshots
-### Login
+#### Login
 ![](img/screenshots/login.png)
 
-### Registration
+#### Registration
 ![](img/screenshots/registration.png)
 
-### Main Program
-![](img/screenshots/mainprogram.png)
+#### Main Program
+##### If user has a database
+![](img/screenshots/mainprogramdb.png)
+![](img/screenshots/mainprogramdb2.png)
+![](img/screenshots/mainprogramdb3.png)
+##### If user does not have a database
+![](img/screenshots/mainprogramnodb.png)
+
+#### Creating Employee Records
+![](img/screenshots/createemployee.png)
+![](img/screenshots/createemployee2.png)
+
+#### Employee list
+![](img/screenshots/employeelist.png)
+
+#### Record settings
+![](img/screenshots/recordsettings.png)
+
+#### Edit record
+![](img/screenshots/recordedit.png)
+![](img/screenshots/recordedit2.png.png)
+
+
 
 ## Project Structure
 - `src/main.py`: Main application file that initializes and runs the program.
