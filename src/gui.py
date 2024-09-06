@@ -1,13 +1,13 @@
 import sys, os, re
 import keyring, configparser
-from PySide6.QtCore import QSize, Qt, QEvent, QTimer
+from PySide6.QtCore import QSize, Qt, QEvent, QTimer, Slot, QStandardPaths
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QFormLayout, QLabel,
     QLineEdit, QCheckBox, QPushButton, QHBoxLayout, QStackedWidget,
-    QToolTip, QFrame, QSlider
+    QToolTip, QFrame, QSlider, QScrollArea, QMenu, QComboBox, QFileDialog
 )
 from PySide6.QtGui import (QPainter, QPixmap, QFont, QFontDatabase, QGuiApplication,
-                           QPalette, QColor, QIcon, QLinearGradient, QAction, QBrush
+                           QPalette, QColor, QIcon, QLinearGradient, QAction, QDragEnterEvent, QDropEvent
 )
 from database import Login, Register, EmployeeData
 
@@ -565,8 +565,13 @@ class RegisterWindow(QWidget):
             print("Failed to load custom font.")
 
 class MainProgram(QWidget):
-    def __init__(self, parent=None) -> None:
+    def __init__(self, user, parent=None) -> None:
         super().__init__(parent)
+        self.employee_data = EmployeeData()
+        self.user_mail = user
+        # check if user is editing employee record
+        self.is_editing = False
+
         self.load_custom_font()
         
         # creating fonts
@@ -576,8 +581,8 @@ class MainProgram(QWidget):
         self.head_font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
         self.paragraph_font = QFont("Now", 12)
         self.paragraph_font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
-        self.slider_font = QFont("Now", 11)
-        self.slider_font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
+        self.font11 = QFont("Now", 11)
+        self.font11.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
 
         self.setup_ui()
         
@@ -591,10 +596,6 @@ class MainProgram(QWidget):
         menubar_widget = self.create_menubar()
 
         self.stacked_widget = QStackedWidget(self)
-
-        #if not EmployeeData.employeelistexists
-        self.no_db_window = QWidget()
-        self.no_db_window.setLayout(self.no_database_layout())
         
         self.database_window = QWidget(self)
         self.database_window.setLayout(self.create_database_layout())
@@ -602,10 +603,18 @@ class MainProgram(QWidget):
         self.schedule_window = QWidget(self)
         self.schedule_window.setLayout(self.create_schedule_layout())
 
-        self.stacked_widget.addWidget(self.no_db_window)
         self.stacked_widget.addWidget(self.database_window)
         self.stacked_widget.addWidget(self.schedule_window)
 
+        #if not EmployeeData.employeelistexists
+        if self.employee_data.checkIfTableExist(self.user_mail) != 200:
+            self.no_db_window = QWidget()
+            self.no_db_window.setLayout(self.no_database_layout())
+            self.stacked_widget.addWidget(self.no_db_window)
+            self.stacked_widget.setCurrentWidget(self.no_db_window)
+        else:
+            self.stacked_widget.setCurrentWidget(self.schedule_window)
+        
         main_layout.addWidget(menubar_widget)
         main_layout.addWidget(self.stacked_widget)
 
@@ -763,34 +772,6 @@ class MainProgram(QWidget):
     def create_database_layout(self):
         """Layout for creating and editing employee database"""
 
-        def show_add_emp():
-            stacked_database_widget.setCurrentWidget(form_widget)
-            employee_list_button.setStyleSheet("""
-                                              color: black;
-                                              background-color: transparent;
-                                              border-radius: 0px;
-                                              """)
-            add_employee_button.setStyleSheet("""
-                                               color: #df9233;
-                                               background-color: black;
-                                               margin-right: -10px;
-                                               border-radius: 0px;
-                                               """)
-
-        def show_emp_list():
-            add_employee_button.setStyleSheet("""
-                                              color: black;
-                                              background-color: transparent;
-                                              border-radius: 0px;
-                                              """)
-            employee_list_button.setStyleSheet("""
-                                               color: #df9233;
-                                               background-color: black;
-                                               margin-left: -10px;
-                                               border-radius: 0px;
-                                               """)
-            stacked_database_widget.setCurrentWidget(emp_list_widget)
-        
         def update_value_label():
             value = slider.value()
             if value < 2:
@@ -816,10 +797,13 @@ class MainProgram(QWidget):
             else:
                 value_label.setText("")
 
+        def add_employee():
+            self.employee_data.addEmployee(self.user_mail, emp_id.text(), emp_name.text(), values[slider.value()-1], student_second_job_checkbox.isChecked())
+
 
 
         # QStackedWidget for changing layout between adding employee and list of employees
-        stacked_database_widget = QStackedWidget()
+        self.stacked_database_widget = QStackedWidget()
 
         database_layout = QVBoxLayout()
         database_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
@@ -837,29 +821,32 @@ class MainProgram(QWidget):
         database_switch.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         database_switch.setSpacing(0)
 
-        add_employee_button = QPushButton("ADD EMPLOYEE")
-        employee_list_button = QPushButton("EMPLOYEE LIST")
+        self.add_employee_button = QPushButton("ADD EMPLOYEE")
+        self.employee_list_button = QPushButton("EMPLOYEE LIST")
 
-        for button in [add_employee_button, employee_list_button]:
+        for button in [self.add_employee_button, self.employee_list_button]:
             button.setFixedSize(200,60)
             button.setFont(self.button_font)
 
-        add_employee_button.setStyleSheet("""
+        self.add_employee_button.setStyleSheet("""
                                             color: #df9233;
                                             background-color: black;
                                             margin-right: -10px;
                                             border-radius: 0px;
+                                            outline: none;
                                           """)
-        add_employee_button.clicked.connect(show_add_emp)
-        employee_list_button.setStyleSheet("""
+        self.add_employee_button.clicked.connect(self.show_add_emp)
+        self.employee_list_button.setStyleSheet("""
                                             color: black;
                                             background-color: transparent;
                                             border-radius: 0px;
+                                            margin-left: -10px;
+                                            outline: none;
                                            """)
-        employee_list_button.clicked.connect(show_emp_list)
+        self.employee_list_button.clicked.connect(self.show_emp_list)
 
-        database_switch.addWidget(add_employee_button)
-        database_switch.addWidget(employee_list_button)
+        database_switch.addWidget(self.add_employee_button)
+        database_switch.addWidget(self.employee_list_button)
 
         # creating a line in between two buttons
         line = QFrame(database_widget)
@@ -873,18 +860,18 @@ class MainProgram(QWidget):
         line.move((database_widget.width()/2)-4, 0)
         line.raise_()
 
-        # creating employee add form
+        ###### creating employee add form ######
         form_layout = QVBoxLayout()
-        form_layout.setSpacing(30)
+        form_layout.setSpacing(50)
         form_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        form_widget = QWidget()
-        form_widget.setFixedSize(560, 520)
-        form_widget.setStyleSheet("""
+        self.form_widget = QWidget()
+        self.form_widget.setFixedSize(560, 520)
+        self.form_widget.setStyleSheet("""
                                     background-color: rgba(0, 0, 0, 0.15);
                                     border-radius: 15px;
                                 """)
-        form_widget.setLayout(form_layout)
+        self.form_widget.setLayout(form_layout)
 
         # creating QLineEdits for employee id and employee name
         emp_id = QLineEdit()
@@ -922,7 +909,8 @@ class MainProgram(QWidget):
         input_field_center_horizontal.addStretch()
         input_field_center_horizontal.addLayout(input_field_center)
         input_field_center_horizontal.addStretch()
-        input_field_center_horizontal.setContentsMargins(0,50,0,30)
+        input_field_center_horizontal.setContentsMargins(0,50,0,0)
+        input_field_center_horizontal.setSpacing(30)
 
         # creating a slider for working time
         slider_layout = QHBoxLayout()
@@ -968,7 +956,7 @@ class MainProgram(QWidget):
         slider_label = QLabel("Working Time")
         
         for label in [label_left, label_right, slider_label]:
-            label.setFont(self.slider_font)
+            label.setFont(self.font11)
             label.setStyleSheet("""
                                 background: none;
                                 color: black;
@@ -984,10 +972,10 @@ class MainProgram(QWidget):
         slider_layout.setSpacing(5)
 
         # value label above the slider that will follow the handle
-        value_label = QLabel(form_widget)
+        value_label = QLabel(self.form_widget)
         value_label.setFixedSize(50, 20)
         value_label.setAlignment(Qt.AlignCenter)
-        value_label.setFont(self.slider_font)
+        value_label.setFont(self.font11)
         value_label.setStyleSheet("color: black; background: none;")
 
         # change value_label position to be alway on top of handle
@@ -998,20 +986,129 @@ class MainProgram(QWidget):
         slider_layout_v.addWidget(slider_label)
         slider_layout_v.setSpacing(0)
 
+        # student/second job checkbox setup
+        student_second_job_checkbox = QCheckBox("Student or Second Job")
+        # making cursor clickable when checkbox hovered
+        student_second_job_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
+        student_second_job_checkbox.setFont(self.font11)
+        student_second_job_checkbox.setStyleSheet("""
+                                                QCheckBox {
+                                                    color: black;
+                                                    font-size: 15px;
+                                                    background: none;
+                                                    outline: none;
+                                                }
+                                                QCheckBox::indicator {
+                                                    width: 20px;
+                                                    height: 20px;
+                                                    background-color: transparent;
+                                                    border: 2px solid black;
+                                                    border-radius: 5px;
+                                                }
+                                                QCheckBox::indicator:checked {
+                                                    background: url(img/checkmark.png) no-repeat center center;
+                                                }
+        """)
+        # center checkbox
+        centered_checkbox = self.center_widget(student_second_job_checkbox)
+
+        # creating ADD button to add employee to database
+        add_button = QPushButton("ADD")
+        add_button.clicked.connect(add_employee)
+        add_button.setFont(self.button_font)
+        add_button.setStyleSheet("""
+                                 background-color: black;
+                                 color: #d47853;
+                                 border-radius: 10;
+                                 outline: none;
+                                 """)
+        add_button.setFixedSize(240, 45)
+        add_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        add_button_center = self.center_widget(add_button)
+
         # adding widgets and layouts to form layout
         form_layout.addLayout(input_field_center_horizontal)
         form_layout.addLayout(slider_layout_v)
+        form_layout.addLayout(centered_checkbox)
+        form_layout.addLayout(add_button_center)
 
-        # creating employee list layout
+        ###### creating employee list layout ######
         emp_list_layout = QVBoxLayout()
-        emp_list_widget = QWidget()
-        emp_list_widget.setLayout(emp_list_layout)
+        self.emp_list_widget = QWidget()
+        self.emp_list_widget.setStyleSheet("""
+                                        background-color: rgba(0, 0, 0, 0.15);
+                                        border-radius: 15px;
+                                    """)
+        self.emp_list_widget.setLayout(emp_list_layout)
+        
+        emp_list_headers = QHBoxLayout()
+        emp_list_headers.setContentsMargins(0,30,0,0)
+        emp_list_headers.setSpacing(0)
 
-        stacked_database_widget.addWidget(form_widget)
-        stacked_database_widget.addWidget(emp_list_widget)
+        id_label = QLabel("ID")
+        name_label = QLabel("Name")
+        wt_label = QLabel("WT")
+        student_label = QLabel("Student/SJ")
+        
+        for label in [id_label, name_label, wt_label, student_label]:
+            label.setStyleSheet("""
+                                color: black;
+                                background: none;
+                                """)
+            label.setFont(self.font11)
+            label.setFixedWidth(100)
+
+        
+        emp_list_headers.addSpacing(30)
+        emp_list_headers.addWidget(id_label)
+        emp_list_headers.addSpacing(20)
+        emp_list_headers.addWidget(name_label)
+        emp_list_headers.addSpacing(20)
+        wt_label.setContentsMargins(10,0,0,0)
+        emp_list_headers.addWidget(wt_label)
+        emp_list_headers.addWidget(student_label)
+        emp_list_headers.addStretch()
+
+        # create a line below headers
+        header_line = QFrame()
+        header_line.setFrameShape(QFrame.HLine)
+        header_line.setFrameShadow(QFrame.Sunken)
+        header_line.setStyleSheet("background-color: black;")
+        header_line.setFixedSize(527, 1)
+
+        # center that line horizontaly
+        line_center = QHBoxLayout()
+        line_center.addStretch()
+        line_center.addWidget(header_line)
+        line_center.addStretch()
+        
+        # group headers and line together
+        header_and_line = QVBoxLayout()
+        header_and_line.addLayout(emp_list_headers)
+        header_and_line.addLayout(line_center)
+        header_and_line.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        # adding list area with scrollbar for employee list
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFixedWidth(525)
+
+        scroll_area_centered = QHBoxLayout()
+        scroll_area_centered.addStretch()
+        scroll_area_centered.addWidget(self.scroll_area)
+        scroll_area_centered.addStretch()
+
+        
+        
+        emp_list_layout.addLayout(header_and_line)
+        emp_list_layout.addLayout(scroll_area_centered)
+
+
+        self.stacked_database_widget.addWidget(self.form_widget)
+        self.stacked_database_widget.addWidget(self.emp_list_widget)
 
         database_layout.addLayout(database_switch)
-        database_layout.addWidget(stacked_database_widget)
+        database_layout.addWidget(self.stacked_database_widget)
         database_widget.setLayout(database_layout)
 
         centered_layout = self.center_widget(database_widget)
@@ -1020,10 +1117,196 @@ class MainProgram(QWidget):
         return centered_layout
     
     def create_schedule_layout(self):
-        # Placeholder: utwórz i zwróć layout do widoku grafiku
-        layout = QVBoxLayout()
-        layout.addWidget(QLabel("Schedule Page Content"))
-        return layout
+        """Layout for uploading file and generating schedule"""
+        schedule_layout = QVBoxLayout()
+
+        upload_font = QFont("Now", 18)
+        upload_label = QLabel("Upload File")
+        upload_label.setFont(upload_font)
+        upload_label.setStyleSheet("background: transparent;")
+        centered_upload = self.center_widget(upload_label)
+        centered_upload.setContentsMargins(0,20,0,0)
+
+        drag_n_drop_layout = QVBoxLayout()
+        drag_n_drop_layout.setSpacing(10)
+
+        upload_icon = QLabel()
+        pixmap = QPixmap("img/upload.png")
+        scaled_pixmap = pixmap.scaled(45, 45, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        upload_icon.setPixmap(scaled_pixmap)
+        upload_icon.setFixedSize(45,45)
+        upload_icon.setStyleSheet("""
+                                  background: none;
+                                  border: none;
+                                  border-radius: 0px;
+                                  """)
+        centered_upload_icon = QHBoxLayout()
+        centered_upload_icon.addStretch()
+        centered_upload_icon.addWidget(upload_icon)
+        centered_upload_icon.addStretch()
+        centered_upload_icon.setContentsMargins(0,50,0,0)
+        
+        self.drag_n_drop_label = QLabel("Drag and Drop file\nor")
+        self.drag_n_drop_label.setFont(self.head_font)
+        self.drag_n_drop_label.setStyleSheet("""
+                                        background: none;
+                                        border: none;
+                                        border-radius: 0px;
+                                        """)
+        self.drag_n_drop_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+
+        browse_button = QPushButton("Browse")
+        browse_button.setFont(self.head_font)
+        browse_button.setFixedSize(140, 37)
+        browse_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        browse_button.clicked.connect(self.open_file_dialog)
+        browse_button.setStyleSheet("""
+                                    color: #da8444;
+                                    background-color: black;
+                                    border: none;
+                                    border-radius: 10px;
+                                    """)
+        center_browse_button = self.center_widget(browse_button)
+
+        drag_n_drop_layout.addLayout(centered_upload_icon)
+        drag_n_drop_layout.addWidget(self.drag_n_drop_label)
+        drag_n_drop_layout.addLayout(center_browse_button)
+        
+        self.drag_n_drop_widget = QWidget()
+        self.drag_n_drop_widget.setLayout(drag_n_drop_layout)
+        self.drag_n_drop_widget.setAcceptDrops(True)
+        self.drag_n_drop_widget.setFixedSize(370, 250)
+        self.drag_n_drop_widget.setStyleSheet("""
+                                         background-color: rgba(255,255,255,0.15);
+                                         border: 2px dashed black;
+                                         border-radius: 15;
+                                        """)
+        centered_drag_n_drop = self.center_widget(self.drag_n_drop_widget)
+        centered_drag_n_drop.setContentsMargins(0,0,0,20)
+
+
+        schedule_layout.addLayout(centered_upload)
+        schedule_layout.addLayout(centered_drag_n_drop)
+        
+        schedule_widget = QWidget()
+        schedule_widget.setLayout(schedule_layout)
+        schedule_widget.setStyleSheet("""
+                                      color: black;
+                                      background-color: rgba(255,255,255,0.15);
+                                      border-radius: 15;
+                                      """)
+        schedule_widget.setFixedSize(450, 400)
+        centered_schedule_widget = self.center_widget(schedule_widget)
+        centered_schedule_widget.setContentsMargins(0,70,0,0)
+
+        # create drag and drop events to upload files
+        def dragEnterEvent(event: QDragEnterEvent):
+            if event.mimeData().hasUrls():
+                event.acceptProposedAction()
+
+        def dropEvent(event: QDropEvent):
+            files = event.mimeData().urls()
+            if files:
+                file_path = files[0].toLocalFile()
+                # accept only Excel files
+                if file_path.endswith(('.xls', '.xlsx')):
+                    print(f"Valid Excel file dropped: {file_path}")
+                    #if valid file, than change border to green, display file name and enable generate button
+                    self.drag_n_drop_label.setText(f"{file_path.split("/")[-1]} dropped")
+                    self.drag_n_drop_widget.setStyleSheet("""
+                                                     background-color: rgba(255,255,255,0.15);
+                                                     border: 2px dashed green;
+                                                     border-radius: 15;
+                                                     """)
+                    self.generate_button.setCursor(Qt.CursorShape.PointingHandCursor)
+                    self.generate_button.setStyleSheet("""
+                                                        color: #da8444;
+                                                        background-color: black;
+                                                        border: none;
+                                                        border-radius: 10px;
+                                                        """)
+                else:
+                    print(f"Ignored non-Excel file: {file_path}")
+                    self.drag_n_drop_label.setText("Only Excel files are accepted")
+                    self.drag_n_drop_widget.setStyleSheet("""
+                                                     background-color: rgba(255,255,255,0.15);
+                                                     border: 2px dashed red;
+                                                     border-radius: 15;
+                                                     """)
+                    self.generate_button.setCursor(Qt.CursorShape.CustomCursor)
+                    self.generate_button.setStyleSheet("""
+                                    color: #606060;
+                                    background-color: rgba(192,192,192,0.5);
+                                    border: none;
+                                    border-radius: 10px;
+                                    """)
+
+        self.drag_n_drop_widget.dragEnterEvent = dragEnterEvent
+        self.drag_n_drop_widget.dropEvent = dropEvent
+
+        self.generate_button = QPushButton("Generate!")
+        self.generate_button.setFont(self.head_font)
+        self.generate_button.setFixedSize(240, 50)
+        #self.generate_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.generate_button.setStyleSheet("""
+                                    color: #606060;
+                                    background-color: rgba(192,192,192,0.5);
+                                    border: none;
+                                    border-radius: 10px;
+                                    """)
+
+        centered_generate_button = self.center_widget(self.generate_button)
+        centered_generate_button.setContentsMargins(0, 50, 0, 0)
+
+        # group drag_n_drop and generate button
+        main_layout = QVBoxLayout()
+        main_layout.addLayout(centered_schedule_widget)
+        main_layout.addLayout(centered_generate_button)
+
+        return main_layout
+    
+    def open_file_dialog(self):
+        # get desktop path
+        desktop_path = QStandardPaths.writableLocation(QStandardPaths.DesktopLocation)
+
+        # open file dialog and get the selected file path
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select an Excel file", desktop_path, "Excel  Files (*.xls *.xlsx)")
+
+        if file_path:
+            # Extract the file name from the path
+            file_name = os.path.basename(file_path)
+
+
+        if file_path.endswith(('.xls', '.xlsx')):
+            print(f"Valid Excel file dropped: {file_path}")
+            self.drag_n_drop_label.setText(f"{file_path.split("/")[-1]} chosen")
+            self.drag_n_drop_widget.setStyleSheet("""
+                                             background-color: rgba(255,255,255,0.15);
+                                             border: 2px dashed green;
+                                             border-radius: 15;
+                                             """)
+            self.generate_button.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.generate_button.setStyleSheet("""
+                            color: #da8444;
+                            background-color: black;
+                            border: none;
+                            border-radius: 10px;
+                            """)
+        else:
+            print(f"Ignored non-Excel file: {file_path}")
+            self.drag_n_drop_label.setText("Only Excel files are accepted")
+            self.drag_n_drop_widget.setStyleSheet("""
+                                             background-color: rgba(255,255,255,0.15);
+                                             border: 2px dashed red;
+                                             border-radius: 15;
+                                             """)
+            self.generate_button.setCursor(Qt.CursorShape.CustomCursor)
+            self.generate_button.setStyleSheet("""
+                                    color: #606060;
+                                    background-color: rgba(192,192,192,0.5);
+                                    border: none;
+                                    border-radius: 10px;
+                                    """)
     
     def show_database_layout(self):
         self.stacked_widget.setCurrentWidget(self.database_window)
@@ -1033,6 +1316,291 @@ class MainProgram(QWidget):
 
     def show_no_database_layout(self):
         self.stacked_widget.setCurrentWidget(self.no_db_window)
+
+    def show_add_emp(self):
+        self.stacked_database_widget.setCurrentWidget(self.form_widget)
+        self.employee_list_button.setStyleSheet("""
+                                          color: black;
+                                          background-color: transparent;
+                                          border-radius: 0px;
+                                          margin-left: -10px;
+                                          outline: none;
+                                          """)
+        self.add_employee_button.setStyleSheet("""
+                                           color: #df9233;
+                                           background-color: black;
+                                           margin-right: -10px;
+                                           border-radius: 0px;
+                                           outline: none;
+                                           """)
+        
+        
+    def show_emp_list(self):
+        """Updates and shows employee list"""
+        # change buttons style
+        self.add_employee_button.setStyleSheet("""
+                                          color: black;
+                                          background-color: transparent;
+                                          border-radius: 0px;
+                                          margin-right: -10px;
+                                          outline: none;
+                                          """)
+        self.employee_list_button.setStyleSheet("""
+                                           color: #df9233;
+                                           background-color: black;
+                                           margin-left: -10px;
+                                           border-radius: 0px;
+                                           outline: none;
+                                           """)
+        # set employee list as current widget
+        self.stacked_database_widget.setCurrentWidget(self.emp_list_widget)
+        
+        self.update_scroll_area()
+
+        
+    def update_scroll_area(self):
+        """Creates employee list widget and returns it"""
+        # get employee data from database
+        employee_list = self.employee_data.getEmployeeTable(self.user_mail)
+        # delete user_id (first column)
+        employee_list = [row[1:] for row in employee_list]
+        
+        list_area_widget = QWidget()
+        list_area_widget.setStyleSheet("""
+                                       background: none;
+                                       """)
+        list_area_layout = QVBoxLayout(list_area_widget)
+        
+        if len(employee_list) > 0:
+            for data in employee_list:
+                row_layout = QHBoxLayout()
+                config_button = QPushButton()
+                config_button.setIcon(QIcon(QPixmap("img/more.png")))
+                config_button.setCursor(Qt.CursorShape.PointingHandCursor)
+                config_button.setStyleSheet("""
+                                                background: none;
+                                                border: none;
+                                                outline: none;
+                                            """)
+                # set the employee ID as the button's property
+                config_button.setProperty("employee_id", data[0])
+                config_button.clicked.connect(self.show_context_menu)
+
+                emp_list_id = QLabel(data[0])
+                emp_list_name = QLabel(data[1])
+                emp_list_wt = QLabel(data[2])
+                emp_list_student = QLabel("Yes" if data[3] == 1 else "No")
+
+                # assign properties to each QLabel
+                emp_list_id.setProperty('employee_id', data[0])
+                emp_list_id.setProperty('type', 'id')
+
+                emp_list_name.setProperty('employee_id', data[0])
+                emp_list_name.setProperty('type', 'name')
+
+                emp_list_wt.setProperty('employee_id', data[0])
+                emp_list_wt.setProperty('type', 'wt')
+
+                emp_list_student.setProperty('employee_id', data[0])
+                emp_list_student.setProperty('type', 'student')
+
+                for label in [emp_list_id, emp_list_name, emp_list_wt, emp_list_student]:
+                    label.setStyleSheet("""
+                                        color: black;
+                                        background: none;
+                                        """)
+                    label.setFont(self.font11)
+                    label.setFixedWidth(100)
+                
+
+                row_layout.addSpacing(10)
+                row_layout.addWidget(emp_list_id)
+                row_layout.addSpacing(15)
+                row_layout.addWidget(emp_list_name)
+                row_layout.addSpacing(25)
+                row_layout.addWidget(emp_list_wt)
+                row_layout.addWidget(emp_list_student)
+                row_layout.addWidget(config_button)
+                row_layout.addStretch()
+
+                row_line = QFrame()
+                row_line.setFrameShape(QFrame.HLine)
+                row_line.setFrameShadow(QFrame.Sunken)
+                row_line.setStyleSheet("background-color: rgba(0,0,0,0.10);")
+                row_line.setFixedHeight(1)
+
+                list_area_layout.addLayout(row_layout)
+                list_area_layout.addWidget(row_line)
+
+            # scroll_area was cutting the last row in half, thats why I am adding stretch at the end
+            list_area_layout.addStretch()
+
+        # add the list to scroll area
+        self.scroll_area.setWidget(list_area_widget)
+        self.scroll_area.setStyleSheet("""
+                                    QScrollArea {
+                                        background-color: rgba(255,255,255,0.15);
+                                        border-radius: 5;
+                                    }
+                                  
+                                    QScrollBar:vertical {
+                                        background-color: rgba(0,0,0,0.15);
+                                        width: 6px;
+                                    }
+
+                                    QScrollBar::handle:vertical {
+                                        background-color: black;
+                                        min-height: 20px;
+                                    }
+
+                                    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                                        background: none;
+                                        height: 0px;
+                                        width: 4px;
+                                    }
+
+                                    QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                                        background: none;
+                                        height: 0px;
+                                        width: 4px;
+                                    }
+                                """)
+    
+    @Slot()
+    def show_context_menu(self):
+        # retrieve the employee ID from the button's property
+        button = self.sender()
+        employee_id = button.property('employee_id')
+
+        # create the context menu
+        menu = QMenu(self)
+
+        if not self.is_editing:
+            edit_action = QAction("Edit", self)
+            delete_action = QAction("Delete", self)
+            menu.addAction(edit_action)
+            menu.addAction(delete_action)
+            edit_action.triggered.connect(lambda: self.edit_employee(employee_id))
+            delete_action.triggered.connect(lambda: self.delete_employee(employee_id))
+        else:
+            save_action = QAction("Save", self)
+            cancel_action = QAction("Cancel", self)
+            save_action.triggered.connect(lambda: self.save_changes(employee_id))
+            cancel_action.triggered.connect(lambda: self.cancel_edit(employee_id))
+            menu.addAction(save_action)
+            menu.addAction(cancel_action)
+        
+        menu.setContentsMargins(-30,0,0,0)
+        menu.setFixedSize(70, 55)
+        
+        # display the context menu
+        menu.exec(button.mapToGlobal(button.rect().bottomRight()))
+
+    def delete_employee(self, employee_id):
+        print(f"Delete employee with ID: {employee_id}")
+        self.employee_data.deleteEmployee(self.user_mail, employee_id)
+
+        self.update_scroll_area()
+
+    def edit_employee(self, employee_id):
+        print(f"Edit employee with ID: {employee_id}")
+        self.is_editing = True
+
+        for label in self.findChildren(QLabel):
+            if label.property("employee_id") == employee_id:
+                text = label.text()
+                layout = label.parentWidget().layout()
+                
+                if label.property('type') == 'id':
+                    # Convert QLabel to QLineEdit
+                    id_line_edit = QLineEdit(text)
+                    id_line_edit.setFont(self.font11)
+                    id_line_edit.setFixedWidth(100)
+                    layout.replaceWidget(label, id_line_edit)
+                    label.deleteLater()
+                    id_line_edit.setStyleSheet("""
+                                            color: black;
+                                            background-color: rgba(255,255,210,0.40);
+                                            border: 1px solid black;
+                                            """)
+                    
+                elif label.property('type') == 'name':
+                    # Convert QLabel to QLineEdit
+                    name_line_edit = QLineEdit(text)
+                    name_line_edit.setFont(self.font11)
+                    name_line_edit.setFixedWidth(100)
+                    layout.replaceWidget(label, name_line_edit)
+                    label.deleteLater()
+                    name_line_edit.setStyleSheet("""
+                                            color: black;
+                                            background-color: rgba(255,255,210,0.40);
+                                            border: 1px solid black;
+                                            """)
+
+                elif label.property('type') == 'wt':
+                    # Convert QLabel to QComboBox for Work Time
+                    wt_combo_box = QComboBox()
+                    wt_combo_box.addItems(["0.25", "0.5", "0.75", "1"])
+                    wt_combo_box.setCurrentText(text)
+                    wt_combo_box.setFont(self.font11)
+                    wt_combo_box.setFixedWidth(100)
+                    wt_combo_box.setStyleSheet("""
+                                            QComboBox {
+                                                background-color: rgba(255,255,210,0.40);
+                                                border: 1px solid black;
+                                                color: black;
+                                            }
+                                            QComboBox QAbstractItemView {
+                                                background-color: rgba(255,255,210,0.40);
+                                                border: 1px solid black;
+                                                border-radius: 2px;
+                                                color: black;
+                                            }
+                                            """)
+                    layout.replaceWidget(label, wt_combo_box)
+                    label.deleteLater()
+
+                elif label.property('type') == 'student':
+                    # Convert QLabel to QComboBox for Student Status
+                    st_combo_box = QComboBox()
+                    st_combo_box.addItems(["Yes", "No"])
+                    st_combo_box.setCurrentText(text)
+                    st_combo_box.setFont(self.font11)
+                    st_combo_box.setFixedWidth(100)
+                    st_combo_box.setStyleSheet("""
+                                            QComboBox {
+                                                background-color: rgba(255,255,210,0.40);
+                                                border: 1px solid black;
+                                                color: black;
+                                            }
+                                            QComboBox QAbstractItemView {
+                                                background-color: rgba(255,255,210,0.40);
+                                                border: 1px solid black;
+                                                border-radius: 2px;
+                                                color: black;
+                                            }
+                                            """)
+                    layout.replaceWidget(label, st_combo_box)
+                    label.deleteLater()
+            
+        self.new_data = [id_line_edit, name_line_edit, wt_combo_box, st_combo_box]
+
+    def save_changes(self, old_employee_id):
+        print(f"Save changes for employee with ID: {old_employee_id}")
+        self.is_editing = False
+        id = self.new_data[0].text()
+        name = self.new_data[1].text()
+        wt = self.new_data[2].currentText()
+        student_sj = 1 if self.new_data[3].currentText() == "Yes" else 0
+        
+        self.employee_data.updateEmployeeData(self.user_mail, old_employee_id, id, name, wt, student_sj)
+        self.update_scroll_area()
+        
+
+    def cancel_edit(self, employee_id):
+        print(f"Cancel editing for employee with ID: {employee_id}")
+        self.is_editing = False
+        self.update_scroll_area()
 
     def center_widget(self, widget:QWidget) -> QVBoxLayout:
         # horizontal layout to center the form container
@@ -1094,6 +1662,8 @@ class WindowControl(QStackedWidget):
         self.setWindowTitle("Schedule Creator")
         self.setFixedSize(QSize(1400, 800)) # window size
         self.setWindowIcon(QIcon("img/icon.png")) # window icon
+        self.center()
+        self.email = None
 
         if self.auto_login():
             self.show_main_program()
@@ -1102,7 +1672,7 @@ class WindowControl(QStackedWidget):
     
     def show_main_program(self):
         # create main program window
-        self.main_program = MainProgram(self)
+        self.main_program = MainProgram(self.email, self)
         self.addWidget(self.main_program)
 
         # switch to the main program
@@ -1118,6 +1688,7 @@ class WindowControl(QStackedWidget):
         
         # if object has login_window attribute then remove it  from the stacked widget
         if hasattr(self, "login_window"):
+            self.email = self.login_window.email_input.text()
             self.removeWidget(self.login_window)
             self.login_window.deleteLater()
             self.login_window = None
@@ -1125,6 +1696,7 @@ class WindowControl(QStackedWidget):
     def show_login_window(self):
         # create new login window
         self.login_window = LoginWindow(self)
+        
 
         # add it to the stack
         self.addWidget(self.login_window)
@@ -1162,14 +1734,14 @@ class WindowControl(QStackedWidget):
             config.read(config_file)
 
             if 'USER' in config:
-                email = config['USER']['Email']
+                self.email = config['USER']['Email']
 
                 # get password from keyring
-                password = keyring.get_password("schedule_creator", email)
+                password = keyring.get_password("schedule_creator", self.email)
                 if password:
                     login = Login()
-                    login.connect(email, password)
-                    print(f"Automatically logged in as {email}")
+                    login.connect(self.email, password)
+                    print(f"Automatically logged in as {self.email}")
                     return True
                 else:
                     print("No password found in keyring.")
@@ -1183,10 +1755,3 @@ class WindowControl(QStackedWidget):
         center_point = screen_geometry.center()
         window_geometry.moveCenter(center_point)
         self.move(window_geometry.topLeft())
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window_controller = WindowControl()
-    window_controller.center()
-    window_controller.show()
-    app.exec()
