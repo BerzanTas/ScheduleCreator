@@ -1,6 +1,7 @@
-OPEN_HOUR = 10
-CLOSE_HOUR = 21
-MIN_WORKERS = 1 # minimum number of workers per hour
-MAX_WORKERS = 2
+from dtime import Time
+
+OPEN_HOUR = Time(10)
+CLOSE_HOUR = Time(21,30)
 MAX_UNAVAILABILITY = 2
 MAX_HOURS = 8
+FULL_TIME = 160
