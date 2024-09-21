@@ -577,6 +577,8 @@ class MainProgram(QWidget):
         self.user_mail = user
         # check if user is editing employee record
         self.is_editing = False
+        self.av_file_path = None
+        self.rpt_file_path = None
 
         self.load_custom_font()
         
@@ -1130,21 +1132,21 @@ class MainProgram(QWidget):
 
         return centered_layout
     
-    def create_schedule_layout(self):
-        """Create the layout for uploading files and generating a schedule"""
-        schedule_layout = QVBoxLayout()
+    def file_upload_field(self, file_name="excel") -> QVBoxLayout:
+        main_layout = QVBoxLayout()
 
         # setup label for file upload
         upload_font = QFont("Now", 18)
-        upload_label = QLabel("Upload File")
+        upload_label = QLabel(f"upload {file_name} file")
         upload_label.setFont(upload_font)
         upload_label.setStyleSheet("background: transparent;")
         centered_upload = self.center_widget(upload_label)
-        centered_upload.setContentsMargins(0,20,0,0)
+        centered_upload.setContentsMargins(0,15,0,0)
 
         # setup layout for drag-and-drop area
         drag_n_drop_layout = QVBoxLayout()
         drag_n_drop_layout.setSpacing(10)
+        drag_n_drop_widget = QWidget()
 
         upload_icon = QLabel()
         pixmap = QPixmap("img/upload.png")
@@ -1163,21 +1165,21 @@ class MainProgram(QWidget):
         centered_upload_icon.setContentsMargins(0,50,0,0)
         
         # setup drag-and-drop label
-        self.drag_n_drop_label = QLabel("Drag and Drop file\nor")
-        self.drag_n_drop_label.setFont(self.head_font)
-        self.drag_n_drop_label.setStyleSheet("""
+        drag_n_drop_label = QLabel("Drag and Drop file\nor")
+        drag_n_drop_label.setFont(self.head_font)
+        drag_n_drop_label.setStyleSheet("""
                                         background: none;
                                         border: none;
                                         border-radius: 0px;
                                         """)
-        self.drag_n_drop_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        drag_n_drop_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
         # setup browse button for file upload
         browse_button = QPushButton("Browse")
         browse_button.setFont(self.head_font)
         browse_button.setFixedSize(140, 37)
         browse_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        browse_button.clicked.connect(self.open_file_dialog)
+        browse_button.clicked.connect(lambda: self.open_file_dialog(drag_n_drop_label, drag_n_drop_widget, file_name))
         browse_button.setStyleSheet("""
                                     color: #da8444;
                                     background-color: black;
@@ -1188,36 +1190,35 @@ class MainProgram(QWidget):
 
         # add components to the drag-and-drop layout
         drag_n_drop_layout.addLayout(centered_upload_icon)
-        drag_n_drop_layout.addWidget(self.drag_n_drop_label)
+        drag_n_drop_layout.addWidget(drag_n_drop_label)
         drag_n_drop_layout.addLayout(center_browse_button)
 
         # setup drag-and-drop area widget
-        self.drag_n_drop_widget = QWidget()
-        self.drag_n_drop_widget.setLayout(drag_n_drop_layout)
-        self.drag_n_drop_widget.setAcceptDrops(True)
-        self.drag_n_drop_widget.setFixedSize(370, 250)
-        self.drag_n_drop_widget.setStyleSheet("""
+        drag_n_drop_widget.setLayout(drag_n_drop_layout)
+        drag_n_drop_widget.setAcceptDrops(True)
+        drag_n_drop_widget.setFixedSize(370, 250)
+        drag_n_drop_widget.setStyleSheet("""
                                          background-color: rgba(255,255,255,0.15);
                                          border: 2px dashed black;
                                          border-radius: 15;
                                         """)
-        centered_drag_n_drop = self.center_widget(self.drag_n_drop_widget)
+        centered_drag_n_drop = self.center_widget(drag_n_drop_widget)
         centered_drag_n_drop.setContentsMargins(0,0,0,20)
 
         # add components to the main layout
-        schedule_layout.addLayout(centered_upload)
-        schedule_layout.addLayout(centered_drag_n_drop)
+        main_layout.addLayout(centered_upload)
+        main_layout.addLayout(centered_drag_n_drop)
         
-        schedule_widget = QWidget()
-        schedule_widget.setLayout(schedule_layout)
-        schedule_widget.setStyleSheet("""
+        main_widget = QWidget()
+        main_widget.setLayout(main_layout)
+        main_widget.setStyleSheet("""
                                       color: black;
                                       background-color: rgba(255,255,255,0.15);
                                       border-radius: 15;
                                       """)
-        schedule_widget.setFixedSize(450, 400)
-        centered_schedule_widget = self.center_widget(schedule_widget)
-        centered_schedule_widget.setContentsMargins(0,70,0,0)
+        main_widget.setFixedSize(420, 350)
+        centered_main_widget = self.center_widget(main_widget)
+        centered_main_widget.setContentsMargins(0,70,0,0)
 
         # create drag and drop events to upload files
         def dragEnterEvent(event: QDragEnterEvent):
@@ -1232,27 +1233,31 @@ class MainProgram(QWidget):
                 if self.file_path.endswith(('.xls', '.xlsx')):
                     print(f"Valid Excel file dropped: {self.file_path}")
                     #if valid file, than change border to green, display file name and enable generate button
-                    self.drag_n_drop_label.setText(f"{self.file_path.split("/")[-1]} dropped")
-                    self.drag_n_drop_widget.setStyleSheet("""
+                    drag_n_drop_label.setText(f"{self.file_path.split("/")[-1]} dropped")
+                    drag_n_drop_widget.setStyleSheet("""
                                                      background-color: rgba(255,255,255,0.15);
                                                      border: 2px dashed green;
                                                      border-radius: 15;
                                                      """)
-                    self.generate_button.setCursor(Qt.CursorShape.PointingHandCursor)
-                    self.generate_button.setStyleSheet("""
-                                                        color: #da8444;
-                                                        background-color: black;
-                                                        border: none;
-                                                        border-radius: 10px;
-                                                        """)
+                    # enable generate button if two out of two files were uploaded
+                    if self.av_file_path and self.rpt_file_path:
+                        self.generate_button.setEnabled(True)
+                        self.generate_button.setCursor(Qt.CursorShape.PointingHandCursor)
+                        self.generate_button.setStyleSheet("""
+                                                            color: #da8444;
+                                                            background-color: black;
+                                                            border: none;
+                                                            border-radius: 10px;
+                                                            """)
                 else:
                     print(f"Ignored non-Excel file: {self.file_path}")
-                    self.drag_n_drop_label.setText("Only Excel files are accepted")
-                    self.drag_n_drop_widget.setStyleSheet("""
+                    drag_n_drop_label.setText("Only Excel files are accepted")
+                    drag_n_drop_widget.setStyleSheet("""
                                                      background-color: rgba(255,255,255,0.15);
                                                      border: 2px dashed red;
                                                      border-radius: 15;
                                                      """)
+                    self.generate_button.setEnabled(False)
                     self.generate_button.setCursor(Qt.CursorShape.CustomCursor)
                     self.generate_button.setStyleSheet("""
                                     color: #606060;
@@ -1262,11 +1267,26 @@ class MainProgram(QWidget):
                                     """)
 
         # bind drag-and-drop events
-        self.drag_n_drop_widget.dragEnterEvent = dragEnterEvent
-        self.drag_n_drop_widget.dropEvent = dropEvent
+        drag_n_drop_widget.dragEnterEvent = dragEnterEvent
+        drag_n_drop_widget.dropEvent = dropEvent
+
+        return centered_main_widget
+    
+    def create_schedule_layout(self):
+        """Create the layout for uploading files and generating a schedule"""
+        centered_schedule_widget = self.file_upload_field("availability")
+        centered_rpt_widget = self.file_upload_field("rpt")
+
+        all_upload_fields = QHBoxLayout()
+        all_upload_fields.addStretch()
+        all_upload_fields.addLayout(centered_schedule_widget)
+        all_upload_fields.addSpacing(50)
+        all_upload_fields.addLayout(centered_rpt_widget)
+        all_upload_fields.addStretch()
 
         # setup generate button
         self.generate_button = QPushButton("Generate!")
+        self.generate_button.setDisabled(True)
         self.generate_button.setFont(self.head_font)
         self.generate_button.setFixedSize(240, 50)
         # disable the generate button initially
@@ -1282,47 +1302,55 @@ class MainProgram(QWidget):
 
         # group drag_n_drop and generate button
         main_layout = QVBoxLayout()
-        main_layout.addLayout(centered_schedule_widget)
+        main_layout.addLayout(all_upload_fields)
+        #main_layout.addLayout(centered_rpt_widget)
         main_layout.addLayout(centered_generate_button)
 
         return main_layout
     
-    def open_file_dialog(self):
+    def open_file_dialog(self, drag_n_drop_label, drag_n_drop_widget, upload_field):
         # get desktop path
         desktop_path = QStandardPaths.writableLocation(QStandardPaths.DesktopLocation)
 
         # open file dialog and get the selected file path
-        self.file_path, _ = QFileDialog.getOpenFileName(self, "Select an Excel file", desktop_path, "Excel  Files (*.xls *.xlsx)")
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select an Excel file", desktop_path, "Excel  Files (*.xls *.xlsx)")
 
-        if self.file_path:
+        if upload_field == "availability":
+            self.av_file_path = file_path
+        elif upload_field == "rpt":
+            self.rpt_file_path = file_path
+
+        if file_path:
             # extract the file name from the path
-            file_name = os.path.basename(self.file_path)
-
+            file_name = os.path.basename(file_path)
             # handle valid and invalid file selections
-            if self.file_path.endswith(('.xls', '.xlsx')):
-                print(f"Valid Excel file dropped: {self.file_path}")
-                self.drag_n_drop_label.setText(f"{self.file_path.split("/")[-1]} chosen")
-                self.drag_n_drop_widget.setStyleSheet("""
+            if file_path.endswith(('.xls', '.xlsx')):
+                print(f"Valid Excel file dropped: {file_path}")
+                drag_n_drop_label.setText(f"{file_name} chosen")
+                drag_n_drop_widget.setStyleSheet("""
                                                 background-color: rgba(255,255,255,0.15);
                                                 border: 2px dashed green;
                                                 border-radius: 15;
                                                 """)
-                self.generate_button.setCursor(Qt.CursorShape.PointingHandCursor)
-                self.generate_button.setStyleSheet("""
-                                color: #da8444;
-                                background-color: black;
-                                border: none;
-                                border-radius: 10px;
-                                """)
+                if self.av_file_path and self.rpt_file_path:
+                    self.generate_button.setCursor(Qt.CursorShape.PointingHandCursor)
+                    self.generate_button.setEnabled(True)
+                    self.generate_button.setStyleSheet("""
+                                    color: #da8444;
+                                    background-color: black;
+                                    border: none;
+                                    border-radius: 10px;
+                                    """)
             else:
-                print(f"Ignored non-Excel file: {self.file_path}")
-                self.drag_n_drop_label.setText("Only Excel files are accepted")
-                self.drag_n_drop_widget.setStyleSheet("""
+                print(f"Ignored non-Excel file: {file_path}")
+                drag_n_drop_label.setText("Only Excel files are accepted")
+                drag_n_drop_widget.setStyleSheet("""
                                                 background-color: rgba(255,255,255,0.15);
                                                 border: 2px dashed red;
                                                 border-radius: 15;
                                                 """)
                 self.generate_button.setCursor(Qt.CursorShape.CustomCursor)
+                self.generate_button.setEnabled(False)
                 self.generate_button.setStyleSheet("""
                                         color: #606060;
                                         background-color: rgba(192,192,192,0.5);
