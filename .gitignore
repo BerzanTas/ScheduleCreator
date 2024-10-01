@@ -1,6 +1,8 @@
 src/database.py
 venv/
 schedule.xlsx
+rpt.xlsx
 src/__pycache__/
 src/sensitive_data.py
 user_config.ini
+todo.txt

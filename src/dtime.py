@@ -93,8 +93,3 @@ class Time:
     def minute(self, value):
         self._minute = value%60
     
-
-if __name__ == "__main__":
-    t = Time(10, 0)
-    przerwa = Time(0, 15)
-    print(t + przerwa)
