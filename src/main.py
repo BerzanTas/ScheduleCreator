@@ -12,9 +12,9 @@ class App:
 
     # main method
     def run(self):
-        self.window_controller.main_program.generate_button.clicked.connect(self._generate_schedule)
         self.window_controller.show()
         self.gui_app.exec()
+        self.window_controller.main_program.generate_button.clicked.connect(self._generate_schedule)
         #self.db.main()
         # call main method of ScheduleCreater class
         #self.schedule_creator.main()
